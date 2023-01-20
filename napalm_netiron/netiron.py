@@ -310,6 +310,8 @@ class NetIronDriver(NetworkDriver):
         except (socket.error, EOFError) as e:
             raise ConnectionClosedException(str(e))
 
+    # NAPALM FUNCTIONS
+
     def is_alive(self):
         """Returns a flag with the state of the connection."""
         null = chr(0)
@@ -325,102 +327,6 @@ class NetIronDriver(NetworkDriver):
                 # If unable to send, we can tell for sure that the connection is unusable
                 pass
         return {"is_alive": _status}
-
-    @property
-    def has_slot(self):
-        if not self._has_slot:
-            if self._line_by_line_config:
-                # override if line_by_line is specified
-                self._has_slot = False
-            else:
-                # check if slot1 exists
-                _result = self.device.send_command("dir /slot1")
-                if "File not found" in _result:
-                    # no slot1 then fall-back to line_by_line
-                    self._has_slot = False
-                    self._line_by_line_config = True
-                else:
-                    self._has_slot = True
-
-        return self._has_slot
-
-    @staticmethod
-    def _create_tmp_file(config):
-        """Write temp file and for use with inline config and SCP."""
-        tmp_dir = tempfile.gettempdir()
-        rand_fname = py23_compat.text_type(uuid.uuid4())
-        filename = os.path.join(tmp_dir, rand_fname)
-
-        logger.info("filename: {}".format(filename))
-        # logger.info('config: {}'.format(config))
-        with open(filename, "wt") as fobj:
-            fobj.write(config)
-        return filename
-
-    def _load_candidate_wrapper(self, source_file=None, source_config=None, dest_file=None, file_system=None):
-        """
-        Transfer file to remote device for either merge or replace operations
-
-        netiron does not support merging from flash into running-config. However, MLX devices
-        do support merging slot1 or slot2 into running-config.
-
-        The workaround for devices that do not support merging from slot[1,2]:
-        - maintain state as instance variables
-        - state is not maintained between instances
-        - maintain the merge candidate local to the system running this instance
-        - when commit_config is called simply send merge candidate line-by-line
-
-        Returns (return_status, msg)
-        """
-        self._current_merge_candidate = None
-        self._current_merge_candidate_tmp_file = False
-
-        print("load_candidate_wrapper")
-        return_status = False
-        msg = ""
-        if source_file and source_config:
-            raise ValueError("Cannot simultaneously set source_file and source_config")
-
-        if self._line_by_line_config:
-            # device does NOT have slot1 or line_by_line was specified
-            if source_config:
-                # convert to CR delimited string if config is a list
-                if isinstance(source_config, list):
-                    source_config = "\n".join(source_config)
-
-                self._current_merge_candidate = self._create_tmp_file(source_config)
-                self._current_merge_candidate_tmp_file = True
-                logger.info("candidate: {}".format(self._current_merge_candidate))
-            if source_file:
-                if not os.path.isfile(source_file):
-                    raise MergeConfigException("File {} not found".format(source_file))
-                self._current_merge_candidate = source_file
-
-            return_status = True
-        else:
-            # device has slot1 so use SCP
-
-            if source_config:
-                tmp_file = self._create_tmp_file(source_config)
-                print(tmp_file)
-                (return_status, msg) = self._scp_file(
-                    source_file=tmp_file, dest_file=dest_file, file_system=file_system
-                )
-
-                # remove the temp file
-                if tmp_file and os.path.isfile(tmp_file):
-                    os.remove(tmp_file)
-
-            else:
-                (return_status, msg) = self._scp_file(
-                    source_file=source_file, dest_file=dest_file, file_system=file_system
-                )
-
-            if not return_status:
-                if msg == "":
-                    msg = "Transfer to remote device failed"
-
-        return (return_status, msg)
 
     def load_replace_candidate(self, filename=None, config=None):
         """
@@ -438,71 +344,6 @@ class NetIronDriver(NetworkDriver):
         )
         if not return_status:
             raise MergeConfigException(msg)
-
-    def _normalize_compare_config(self, diff):
-        """Filter out strings that should not show up in the diff."""
-        ignore_strings = ["Contextual Config Diffs", "No changes were found", "ntp clock-period"]
-        if self.auto_file_prompt:
-            ignore_strings.append("file prompt quiet")
-
-        new_list = []
-        for line in diff.splitlines():
-            for ignore in ignore_strings:
-                if ignore in line:
-                    break
-            else:  # no break
-                new_list.append(line)
-        return "\n".join(new_list)
-
-    @staticmethod
-    def _normalize_merge_diff_incr(diff):
-        """Make the compare config output look better.
-
-        Cisco IOS incremental-diff output
-
-        No changes:
-        !List of Commands:
-        end
-        !No changes were found
-        """
-        new_diff = []
-
-        changes_found = False
-        for line in diff.splitlines():
-            if re.search(r"order-dependent line.*re-ordered", line):
-                changes_found = True
-            elif "No changes were found" in line:
-                # IOS in the re-order case still claims "No changes were found"
-                if not changes_found:
-                    return ""
-                else:
-                    continue
-
-            if line.strip() == "end":
-                continue
-            elif "List of Commands" in line:
-                continue
-            # Filter blank lines and prepend +sign
-            elif line.strip():
-                if re.search(r"^no\s+", line.strip()):
-                    new_diff.append("-" + line)
-                else:
-                    new_diff.append("+" + line)
-        return "\n".join(new_diff)
-
-    @staticmethod
-    def _normalize_merge_diff(diff):
-        """Make compare_config() for merge look similar to replace config diff."""
-        new_diff = []
-        for line in diff.splitlines():
-            # Filter blank lines and prepend +sign
-            if line.strip():
-                new_diff.append("+" + line)
-        if new_diff:
-            new_diff.insert(0, "! incremental-diff failed; falling back to echo of merge file")
-        else:
-            new_diff.append("! No changes specified in merge file.")
-        return "\n".join(new_diff)
 
     def compare_config(self):
         """
@@ -547,17 +388,6 @@ class NetIronDriver(NetworkDriver):
         return diff.strip()
         """
         raise NotImplemented
-
-    def _commit_hostname_handler(self, cmd):
-        """Special handler for hostname change on commit operation."""
-        current_prompt = self.device.find_prompt().strip()
-        terminating_char = current_prompt[-1]
-        pattern = r"[>#{}]\s*$".format(terminating_char)
-        # Look exclusively for trailing pattern that includes '#' and '>'
-        output = self.device.send_command_expect(cmd, expect_string=pattern)
-        # Reset base prompt in case hostname changed
-        self.device.set_base_prompt()
-        return output
 
     def commit_config(self, message=""):
         """
@@ -655,132 +485,6 @@ class NetIronDriver(NetworkDriver):
     def discard_config(self):
         """Discard loaded candidate configurations."""
         self._discard_config()
-
-    def _discard_config(self):
-        """Set candidate_cfg to current running-config. Erase the merge_cfg file."""
-        self._current_merge_candidate = None
-        self._current_merge_candidate_tmp_file = False
-
-        if self.has_slot:
-            discard_candidate = "copy running-config slot1 {}".format(self.candidate_cfg)
-            discard_merge = "delete slot1 {}".format(self.merge_cfg)
-            self.device.send_command_expect(discard_candidate)
-            self.device.send_command_expect(discard_merge)
-
-    def _scp_file(self, source_file, dest_file, file_system):
-        """
-        SCP file to remote device.
-
-        Return (status, msg)
-        status = boolean
-        msg = details on what happened
-        """
-        return self._xfer_file(
-            source_file=source_file, dest_file=dest_file, file_system=file_system, transfer_class=NetironFileTransfer
-        )
-
-    def _xfer_file(
-        self, source_file=None, source_config=None, dest_file=None, file_system=None, transfer_class=NetironFileTransfer
-    ):
-
-        """
-        Transfer file to remote device.
-
-        Return (status, msg)
-        status = boolean
-        msg = details on what happened
-        """
-        if not source_file and not source_config:
-            raise ValueError("File source not specified for transfer.")
-
-        if not dest_file or not file_system:
-            raise ValueError("Destination file or file system not specified.")
-
-        if source_file:
-            kwargs = dict(
-                ssh_conn=self.device,
-                source_file=source_file,
-                dest_file=dest_file,
-                direction="put",
-                file_system=file_system,
-            )
-        else:
-            kwargs = dict(
-                ssh_conn=self.device,
-                source_config=source_config,
-                dest_file=dest_file,
-                direction="put",
-                file_system=file_system,
-            )
-
-        with transfer_class(**kwargs) as transfer:
-            print(type(transfer))
-            # Check if file already exists Note Brocade doesn't support checksum or MD5 sum so if it
-            # exists then raise an error as we have no way to determine if the content matches the
-            # desired content
-            if transfer.check_file_exists():
-                return (False, "File already exists")
-
-            if not transfer.verify_space_available():
-                return (False, "Insufficient space available on remote device")
-
-            show_cmd = "sh ip ssh config | include SCP"
-            output = self.device.send_command_expect(show_cmd)
-            if "Enabled" not in output:
-                msg = "SCP file transfers are not enabled. " "Configure 'ip ssh scp enable' on the device."
-                raise CommandErrorException(msg)
-
-            # Transfer file
-            transfer.transfer_file()
-
-            # brocade does NOT support a checksum or md5sum functions
-            # simple check for the existence of the file and size
-            if transfer.verify_file():
-                msg = "File successfully transferred to remote device"
-                return (True, msg)
-            else:
-                return (False, "File transfer to remote device failed")
-        return (False, "")
-
-    def _check_file_exists(self, cfg_path, cfg_file):
-        """
-        Check that the file exists on remote device using full path.
-
-        cfg_file is full path i.e. /flash/file_name
-
-        For example
-        dir /flash/merge_config.txt
-        Directory of /flash/
-
-        06/19/2018 18:52:52                      13 merge_config.txt
-
-                         1 File(s)               13 bytes
-                         0 Dir(s)         6,553,600 bytes free
-
-
-        return boolean
-        """
-
-        cmd = "dir {0}/{1}".format(cfg_path, cfg_file)
-        output = self.device.send_command_expect(cmd)
-        logger.info("cmd: {0} output: {1}".format(cmd, output))
-        if "Error opening" in output:
-            return False
-        elif cfg_file in output:
-            return True
-        return False
-
-    @staticmethod
-    def _send_command_postprocess(output):
-        """
-        Cleanup actions on send_command() for NAPALM getters.
-
-        Remove "Load for five sec; one minute if in output"
-        Remove "Time source is"
-        """
-        output = re.sub(r"^Load for five secs.*$", "", output, flags=re.M)
-        output = re.sub(r"^Time source is .*$", "", output, flags=re.M)
-        return output.strip()
 
     def get_optics(self):
         """
@@ -942,148 +646,6 @@ class NetIronDriver(NetworkDriver):
         facts["interface_list"] += list(lags.keys())
 
         return facts
-
-    @staticmethod
-    def __parse_port_change__(last_str):
-        r1 = re.match(r"(\d+) days (\d+):(\d+):(\d+)", last_str)
-        if r1:
-            days = int(r1.group(1))
-            hours = int(r1.group(2))
-            mins = int(r1.group(3))
-            secs = int(r1.group(4))
-
-            return float(secs + (mins * 60) + (hours * 60 * 60) + (days * 24 * 60 * 60))
-        else:
-            return float(-1.0)
-
-    def _delete_keys_from_dict(self, dict_del, lst_keys):
-        for k in lst_keys:
-            try:
-                del dict_del[k]
-            except KeyError:
-                pass
-        for v in dict_del.values():
-            if isinstance(v, dict):
-                self._delete_keys_from_dict(v, lst_keys)
-
-        return dict_del
-
-    def _get_interface_detail(self, port):
-        description = None
-        mac = None
-        if port == "mgmt1":
-            command = "show interface management1"
-        else:
-            command = "show interface ethernet {}".format(port)
-        output = self.device.send_command(command, delay_factor=self._show_command_delay_factor)
-        output = output.split("\n")
-
-        last_flap = "0.0"
-        speed = "0"
-        for line in output:
-            # Port state change is only supported from >5.9? (no support in 5.7b)
-            r0 = re.match(r"\s+Port state change time: \S+\s+\d+\s+\S+\s+\((.*) ago\)", line)
-            if r0:
-                last_flap = self.__class__.__parse_port_change__(r0.group(1))
-            r1 = re.match(r"\s+No port name", line)
-            if r1:
-                description = ""
-            r2 = re.match(r"\s+Port name is (.*)", line)
-            if r2:
-                description = r2.group(1)
-            r3 = re.match(r"\s+Hardware is \S+, address is (\S+) (.+)", line)
-            if r3:
-                mac = r3.group(1)
-            # Empty modules may not report the speed
-            # Configured fiber speed auto, configured copper speed auto
-            # actual unknown, configured fiber duplex fdx, configured copper duplex fdx, actual unknown
-            r4 = re.match(r"\s+Configured speed (\S+),.+", line)
-            if r4:
-                speed = r4.group(1)
-                if "auto" in speed:
-                    speed = -1
-                else:
-                    r = re.match(r"(\d+)([M|G])bit", speed)
-                    if r:
-                        speed = r.group(1)
-                        if r.group(2) == "M":
-                            speed = int(speed) * 1000
-                        elif r.group(2) == "G":
-                            speed = int(speed) * 1000000
-
-        return [last_flap, description, speed, mac]
-
-    def _get_interface_map(self):
-        """Return dict mapping ethernet port numbers to full interface name, ie
-
-        {
-            "1/1": "GigabitEthernet1/1",
-            ...
-        }
-        """
-
-        if not self.show_int or "pytest" in sys.modules:
-            self.show_int = self.device.send_command_timing(
-                "show interface", delay_factor=self._show_command_delay_factor
-            )
-        info = textfsm_extractor(self, "show_interface", self.show_int)
-
-        result = {}
-        for interface in info:
-            if "ethernet" in interface["port"].lower() and "mgmt" not in interface["port"].lower():
-                ifnum = re.sub(r".*(\d+/\d+)", "\\1", interface["port"])
-                result[ifnum] = interface["port"]
-
-        return result
-
-    def standardize_interface_name(self, port):
-        if not self.interface_map or "pytest" in sys.modules:
-            self.interface_map = self._get_interface_map()
-
-        port = str(port).strip()
-
-        # Convert lbX to LoopbackX
-        port = re.sub(r"^lb(\d+)$", "Loopback\\1", port)
-        # Convert loopbackX to LoopbackX
-        port = re.sub(r"^loopback(\d+)$", "Loopback\\1", port)
-        # Convert tnX to tunnelX
-        port = re.sub(r"^tn(\d+)$", "Tunnel\\1", port)
-        # Conver gre-tnlX to TunnelX
-        port = re.sub(r"^gre-tnl(\d+)$", "Tunnel\\1", port)
-        # Convert veX to VeX
-        port = re.sub(r"^ve(\d+)$", "Ve\\1", port)
-        # Convert mgmt1 to Ethernetmgmt1
-        if port in ["mgmt1", "management1"]:
-            port = "Ethernetmgmt1"
-        # Convert 1/1 or ethernet1/1 to ethernet1/1
-        if re.match(r".*\d+/\d+", port):
-            ifnum = re.sub(r".*(\d+/\d+)", "\\1", port)
-            port = self.interface_map[ifnum]
-
-        return port
-
-    def get_lags(self):
-        result = {}
-
-        if not self.show_running_config_lag or "pytest" in sys.modules:
-            self.show_running_config_lag = self.device.send_command_timing(
-                "show running-config lag", delay_factor=self._show_command_delay_factor
-            )
-        info = textfsm_extractor(self, "show_running_config_lag", self.show_running_config_lag)
-        for lag in info:
-            port = "lag{}".format(lag["id"])
-            result[port] = {
-                "is_up": True,
-                "is_enabled": True,
-                "description": lag["name"],
-                "last_flapped": float(-1),
-                "speed": float(0),
-                "mac_address": "",
-                "mtu": 0,
-                "children": self.interfaces_to_list(lag["ports"]),
-            }
-
-        return result
 
     def get_interfaces(self):
         """get_interfaces method."""
@@ -1284,59 +846,13 @@ class NetIronDriver(NetworkDriver):
 
         return result
 
-    def interface_list_conversation(self, ve, taggedports, untaggedports):
-        interfaces = []
-        if ve and ve != "NONE":
-            interfaces.append("Ve{}".format(ve))
-        if taggedports:
-            interfaces.extend(self.interfaces_to_list(taggedports))
-        if untaggedports:
-            interfaces.extend(self.interfaces_to_list(untaggedports))
-        return interfaces
-
-    def interfaces_to_list(self, interfaces_string):
-        """Convert string like 'ethe 2/1 ethe 2/4 to 2/5' or 'e 2/1 to 2/4' to list of interfaces"""
-        interfaces = []
-
-        if "ethernet" in interfaces_string:
-            split_string = "ethernet"
-        elif "ethe" in interfaces_string:
-            split_string = "ethe"
-        else:
-            split_string = "e"
-
-        sections = interfaces_string.split(split_string)
-        if "" in sections:
-            sections.remove("")  # Remove empty list items
-        for section in sections:
-            section = section.strip()  # Remove leading/trailing spaces
-
-            # Process sections like 2/4 to 2/6
-            if "to" in section:
-                start_intf, end_intf = section.split(" to ")
-                slot, num = start_intf.split("/")
-                slot, end_num = end_intf.split("/")
-                num = int(num)
-                end_num = int(end_num)
-
-                while num <= end_num:
-                    intf_name = "{}/{}".format(slot, num)
-                    interfaces.append(self.standardize_interface_name(intf_name))
-                    num += 1
-
-            # Individual ports like '2/1'
-            else:
-                interfaces.append(self.standardize_interface_name(section))
-
-        return interfaces
-
     def get_lldp_neighbors(self):
         """
-        Returns a dictionary where the keys are local ports and the value is a list of \
-        dictionaries with the following information:
-            * hostname
-            * port
-        """
+            Returns a dictionary where the keys are local ports and the value is a list of \
+            dictionaries with the following information:
+                * hostname
+                * port
+            """
         my_dict = {}
         shw_int_neg = self.device.send_command("show lldp neighbors detail")
         info = textfsm_extractor(self, "show_lldp_neighbors_detail", shw_int_neg)
@@ -1355,56 +871,6 @@ class NetIronDriver(NetworkDriver):
             )
 
         return my_dict
-
-    @staticmethod
-    def bgp_time_conversion(bgp_uptime):
-        """
-        Convert string time to seconds.
-
-        Examples
-        00:14:23
-        00:13:40
-        00:00:21
-        00:00:13
-        00:00:49
-        1d11h
-        1d17h
-        1w0d
-        8w5d
-        1y28w
-        never
-        """
-        bgp_uptime = bgp_uptime.strip()
-        uptime_letters = set(["w", "h", "d"])
-
-        if "never" in bgp_uptime:
-            return -1
-        elif ":" in bgp_uptime:
-            times = bgp_uptime.split(":")
-            times = [int(x) for x in times]
-            hours, minutes, seconds = times
-            return (hours * 3600) + (minutes * 60) + seconds
-        # Check if any letters 'w', 'h', 'd' are in the time string
-        elif uptime_letters & set(bgp_uptime):
-            form1 = r"(\d+)d(\d+)h"  # 1d17h
-            form2 = r"(\d+)w(\d+)d"  # 8w5d
-            form3 = r"(\d+)y(\d+)w"  # 1y28w
-            match = re.search(form1, bgp_uptime)
-            if match:
-                days = int(match.group(1))
-                hours = int(match.group(2))
-                return (days * DAY_SECONDS) + (hours * 3600)
-            match = re.search(form2, bgp_uptime)
-            if match:
-                weeks = int(match.group(1))
-                days = int(match.group(2))
-                return (weeks * WEEK_SECONDS) + (days * DAY_SECONDS)
-            match = re.search(form3, bgp_uptime)
-            if match:
-                years = int(match.group(1))
-                weeks = int(match.group(2))
-                return (years * YEAR_SECONDS) + (weeks * WEEK_SECONDS)
-        raise ValueError("Unexpected value for BGP uptime string: {}".format(bgp_uptime))
 
     def get_bgp_route(self, prefix):
         """
@@ -1653,48 +1119,6 @@ class NetIronDriver(NetworkDriver):
 
         return {destination: _routes}
 
-    def __get_bgp_route_stats__(self, remote_addr):
-
-        afi = "ipv4" if remote_addr.version == 4 else "ipv6"
-        command = "show ip{0} bgp neighbors {1} routes-summary".format(
-            "" if remote_addr.version == 4 else "v6", str(remote_addr)
-        )
-        _lines = self.device.send_command(command, delay_factor=self._show_command_delay_factor)
-        _lines += _lines + "\n" if _lines else ""
-
-        _stats = {
-            "received_prefixes": -1,
-            "accepted_prefixes": -1,
-            "filtered_prefixes": -1,
-            "sent_prefixes": -1,
-            "to_send_prefixes": -1,
-        }
-
-        for line in _lines.splitlines():
-            r1 = re.match(
-                r"^Routes Accepted/Installed:\s*(?P<accepted_prefixes>\d+),\s+"
-                r"Filtered/Kept:\s*(?P<filtered_kept>\d+),\s+"
-                r"Filtered:\s*(?P<filtered_prefixes>\d+)",
-                line,
-            )
-            if r1:
-                _received_prefixes = int(r1.group("accepted_prefixes")) + int(r1.group("filtered_prefixes"))
-                _stats["received_prefixes"] = _received_prefixes
-                _stats["accepted_prefixes"] = r1.group("accepted_prefixes")
-                _stats["filtered_prefixes"] = r1.group("filtered_prefixes")
-
-            r2 = re.match(
-                r"^Routes Advertised:\s*(?P<sent_prefixes>\d+),\s+"
-                r"To be Sent:\s*(?P<to_be_sent>\d+),\s+"
-                r"To be Withdrawn:\s*(?P<to_be_withdrawn>\d+)",
-                line,
-            )
-            if r2:
-                _stats["sent_prefixes"] = r2.group("sent_prefixes")
-                _stats["to_send_prefixes"] = r2.group("to_be_sent")
-
-        return {afi: _stats}
-
     def get_bgp_neighbors(self):
         """
         Retrieve BGP neighbors.
@@ -1934,200 +1358,8 @@ class NetIronDriver(NetworkDriver):
 
             return bgp_data
 
-        def _parse_per_peer_bgp_detail(peer_output):
-            """This function parses the raw data per peer and returns a
-            json structure per peer.
-            """
-
-            int_fields = [
-                "local_as",
-                "remote_as",
-                "local_port",
-                "remote_port",
-                "local_port",
-                "input_messages",
-                "output_messages",
-                "input_updates",
-                "output_updates",
-                "messages_queued_out",
-                "holdtime",
-                "configured_holdtime",
-                "keepalive",
-                "configured_keepalive",
-                "advertised_prefix_count",
-                "received_prefix_count",
-            ]
-
-            peer_details = []
-
-            # Using preset template to extract peer info
-            _peer_info = napalm.base.helpers.textfsm_extractor(self, "bgp_detail", peer_output)
-
-            for item in _peer_info:
-
-                # Determining a few other fields in the final peer_info
-                item["up"] = True if item["connection_state"] == "ESTABLISHED" else False
-                item["local_address_configured"] = True if item["local_address"] else False
-                item["multihop"] = True if item["multihop"] == "yes" else False
-                item["remove_private_as"] = True if item["remove_private_as"] == "yes" else False
-
-                # TODO: The below fields need to be retrieved
-                # Currently defaulting their values to False or 0
-                item["multipath"] = False
-                item["suppress_4byte_as"] = False
-                item["local_as_prepend"] = False
-                item["flap_count"] = 0
-                item["active_prefix_count"] = 0
-                item["suppressed_prefix_count"] = 0
-
-                # Converting certain fields into int
-                for key in int_fields:
-                    if key in item:
-                        item[key] = napalm.base.helpers.convert(int, item[key], 0)
-
-                # process maps and lists
-                for f in ["route_map", "filter_list", "prefix_list"]:
-                    _val = item.get(f)
-                    if _val is not None:
-                        r = _val.split()
-                        if r:
-                            # print 'r: ', r
-                            # print len(r)
-                            _name = "policy" if f == "route_map" else f
-                            if len(r) >= 2:
-                                item[
-                                    "{0}_{1}".format("import" if "in" in r[0] else "export", _name)
-                                ] = napalm.base.helpers.convert(py23_compat.text_type, r[1])
-
-                            if len(r) == 4:
-                                item[
-                                    "{0}_{1}".format("import" if "in" in r[2] else "export", _name)
-                                ] = napalm.base.helpers.convert(py23_compat.text_type, r[3])
-
-                        # remove raw data from item
-                        item.pop(f, None)
-
-                # Conforming with the datatypes defined by the base class
-                item["description"] = napalm.base.helpers.convert(py23_compat.text_type, item.get("description", ""))
-                item["peer_group"] = napalm.base.helpers.convert(py23_compat.text_type, item.get("peer_group", ""))
-                item["remote_address"] = napalm.base.helpers.ip(item["remote_address"])
-                item["previous_connection_state"] = napalm.base.helpers.convert(
-                    py23_compat.text_type, item["previous_connection_state"]
-                )
-                item["connection_state"] = napalm.base.helpers.convert(py23_compat.text_type, item["connection_state"])
-                item["routing_table"] = napalm.base.helpers.convert(py23_compat.text_type, item["routing_table"])
-                item["router_id"] = napalm.base.helpers.ip(item["router_id"])
-                item["local_address"] = napalm.base.helpers.convert(napalm.base.helpers.ip, item["local_address"])
-
-                peer_details.append(item)
-
-            return peer_details
-
-        def _append(bgp_dict, peer_info):
-
-            remote_as = peer_info["remote_as"]
-            vrf_name = peer_info["routing_table"]
-
-            if vrf_name not in bgp_dict.keys():
-                bgp_dict[vrf_name] = {}
-            if remote_as not in bgp_dict[vrf_name].keys():
-                bgp_dict[vrf_name][remote_as] = []
-
-            bgp_dict[vrf_name][remote_as].append(peer_info)
-
-        _peer_ver = None
-        bgp_summary = [list(), list()]
-        raw_output = [list(), list()]
-        bgp_detail_info = dict()
-
-        # used to hold Address Family specific peer info
-        _peer_info_af = [list(), list()]
-
-        if not neighbor_address:
-            """
-            raw_output[0] = self.device.send_command(
-                'show ip bgp neighbors', delay_factor=self._show_command_delay_factor)
-            raw_output[1] = self.device.send_command(
-                'show ipv6 bgp neighbors', delay_factor=self._show_command_delay_factor)
-            """
-            bgp_summary[0] = __process_bgp_summary_data__(
-                self.device.send_command("show ip bgp summary", delay_factor=self._show_command_delay_factor)
-            )
-            bgp_summary[1] = __process_bgp_summary_data__(
-                self.device.send_command("show ipv6 bgp summary", delay_factor=self._show_command_delay_factor)
-            )
-
-            # Using preset template to extract peer info
-            _peer_info_af[0] = _parse_per_peer_bgp_detail(
-                self.device.send_command("show ip bgp neighbors", delay_factor=self._show_command_delay_factor)
-            )
-            _peer_info_af[1] = _parse_per_peer_bgp_detail(
-                self.device.send_command("show ipv6 bgp neighbors", delay_factor=self._show_command_delay_factor)
-            )
-
-        else:
-            try:
-                _peer_ver = IPAddress(neighbor_address).version
-            except Exception as e:
-                raise e
-
-            _ver = "" if _peer_ver == 4 else "v6"
-
-            if _peer_ver == 4:
-                """
-                raw_output[0] = self.device.send_command(
-                    'show ip bgp neighbors {}'.format(neighbor_address),
-                    delay_factor=self._show_command_delay_factor)
-                """
-                bgp_summary[0] = __process_bgp_summary_data__(
-                    self.device.send_command("show ip bgp summary", delay_factor=self._show_command_delay_factor)
-                )
-                _peer_info_af[0] = _parse_per_peer_bgp_detail(
-                    self.device.send_command(
-                        "show ip bgp neighbors {}".format(neighbor_address),
-                        delay_factor=self._show_command_delay_factor,
-                    )
-                )
-            else:
-                """
-                raw_output[1] = self.device.send_command(
-                    'show ipv6 bgp neighbors {}'.format(neighbor_address),
-                    delay_factor=self._show_command_delay_factor)
-                """
-                bgp_summary[1] = __process_bgp_summary_data__(
-                    self.device.send_command("show ipv6 bgp summary", delay_factor=self._show_command_delay_factor)
-                )
-                _peer_info_af[1] = _parse_per_peer_bgp_detail(
-                    self.device.send_command(
-                        "show ipv6 bgp neighbors {}".format(neighbor_address),
-                        delay_factor=self._show_command_delay_factor,
-                    )
-                )
-
-        for i, info in enumerate(_peer_info_af):
-            for peer_info in info:
-
-                _peer_remote_addr = peer_info.get("remote_address")
-
-                try:
-                    _bgp_summary = bgp_summary[i]["global"]["peers"].get(_peer_remote_addr)
-                    if _bgp_summary:
-                        peer_info["local_as"] = _bgp_summary["local_as"]
-
-                        _afi_info = _bgp_summary["address_family"].get("ipv4" if i == 0 else "ipv6")
-                        if _afi_info:
-                            peer_info["suppressed_prefix_count"] = int(_afi_info.get("filtered_prefixes", 0))
-                            peer_info["advertised_prefix_count"] = int(_afi_info.get("sent_prefixes", 0))
-                            peer_info["accepted_prefix_count"] = int(_afi_info.get("accepted_prefixes", 0))
-                except:
-                    pass
-
-                _append(bgp_detail_info, peer_info)
-
-        return bgp_detail_info
-
     def get_interfaces_counters(self):
-        """get_interfaces_counterd method."""
+        """get_interfaces_counters method."""
         cmd = "show statistics"
         lines = self.device.send_command(cmd)
         lines = lines.split("\n")
@@ -2477,12 +1709,12 @@ class NetIronDriver(NetworkDriver):
             try:
                 ntp_stats.append(
                     {
-                        "remote": py23_compat.text_type(address_regex.group(2)),
+                        "remote": str(address_regex.group(2)),
                         "synchronized": ("*" in address_regex.group(1)),
-                        "referenceid": py23_compat.text_type(ref_clock),
+                        "referenceid": str(ref_clock),
                         "stratum": int(st),
                         "type": "-",
-                        "when": py23_compat.text_type(when),
+                        "when": str(when),
                         "hostpoll": int(poll),
                         "reachability": int(reach),
                         "delay": float(delay),
@@ -2972,6 +2204,782 @@ class NetIronDriver(NetworkDriver):
                 {"interface": interface, "mac": mac, "ip": ip, "age": float(age), "state": state}
             )
         return ipv6_neighbors_table
+
+    ##############
+    # PROPERTIES #
+    ##############
+
+    @property
+    def has_slot(self):
+        if not self._has_slot:
+            if self._line_by_line_config:
+                # override if line_by_line is specified
+                self._has_slot = False
+            else:
+                # check if slot1 exists
+                _result = self.device.send_command("dir /slot1")
+                if "File not found" in _result:
+                    # no slot1 then fall-back to line_by_line
+                    self._has_slot = False
+                    self._line_by_line_config = True
+                else:
+                    self._has_slot = True
+
+        return self._has_slot
+
+    ##################
+    # STATIC METHODS #
+    ##################
+
+    @staticmethod
+    def _create_tmp_file(config):
+        """Write temp file and for use with inline config and SCP."""
+        tmp_dir = tempfile.gettempdir()
+        rand_fname = str(uuid.uuid4())
+        filename = os.path.join(tmp_dir, rand_fname)
+
+        logger.info("filename: {}".format(filename))
+        # logger.info('config: {}'.format(config))
+        with open(filename, "wt") as fobj:
+            fobj.write(config)
+        return filename
+
+    def _load_candidate_wrapper(self, source_file=None, source_config=None, dest_file=None, file_system=None):
+        """
+        Transfer file to remote device for either merge or replace operations
+
+        netiron does not support merging from flash into running-config. However, MLX devices
+        do support merging slot1 or slot2 into running-config.
+
+        The workaround for devices that do not support merging from slot[1,2]:
+        - maintain state as instance variables
+        - state is not maintained between instances
+        - maintain the merge candidate local to the system running this instance
+        - when commit_config is called simply send merge candidate line-by-line
+
+        Returns (return_status, msg)
+        """
+        self._current_merge_candidate = None
+        self._current_merge_candidate_tmp_file = False
+
+        print("load_candidate_wrapper")
+        return_status = False
+        msg = ""
+        if source_file and source_config:
+            raise ValueError("Cannot simultaneously set source_file and source_config")
+
+        if self._line_by_line_config:
+            # device does NOT have slot1 or line_by_line was specified
+            if source_config:
+                # convert to CR delimited string if config is a list
+                if isinstance(source_config, list):
+                    source_config = "\n".join(source_config)
+
+                self._current_merge_candidate = self._create_tmp_file(source_config)
+                self._current_merge_candidate_tmp_file = True
+                logger.info("candidate: {}".format(self._current_merge_candidate))
+            if source_file:
+                if not os.path.isfile(source_file):
+                    raise MergeConfigException("File {} not found".format(source_file))
+                self._current_merge_candidate = source_file
+
+            return_status = True
+        else:
+            # device has slot1 so use SCP
+
+            if source_config:
+                tmp_file = self._create_tmp_file(source_config)
+                print(tmp_file)
+                (return_status, msg) = self._scp_file(
+                    source_file=tmp_file, dest_file=dest_file, file_system=file_system
+                )
+
+                # remove the temp file
+                if tmp_file and os.path.isfile(tmp_file):
+                    os.remove(tmp_file)
+
+            else:
+                (return_status, msg) = self._scp_file(
+                    source_file=source_file, dest_file=dest_file, file_system=file_system
+                )
+
+            if not return_status:
+                if msg == "":
+                    msg = "Transfer to remote device failed"
+
+        return (return_status, msg)
+
+    def _normalize_compare_config(self, diff):
+        """Filter out strings that should not show up in the diff."""
+        ignore_strings = ["Contextual Config Diffs", "No changes were found", "ntp clock-period"]
+        if self.auto_file_prompt:
+            ignore_strings.append("file prompt quiet")
+
+        new_list = []
+        for line in diff.splitlines():
+            for ignore in ignore_strings:
+                if ignore in line:
+                    break
+            else:  # no break
+                new_list.append(line)
+        return "\n".join(new_list)
+
+    @staticmethod
+    def _normalize_merge_diff_incr(diff):
+        """Make the compare config output look better.
+
+        Cisco IOS incremental-diff output
+
+        No changes:
+        !List of Commands:
+        end
+        !No changes were found
+        """
+        new_diff = []
+
+        changes_found = False
+        for line in diff.splitlines():
+            if re.search(r"order-dependent line.*re-ordered", line):
+                changes_found = True
+            elif "No changes were found" in line:
+                # IOS in the re-order case still claims "No changes were found"
+                if not changes_found:
+                    return ""
+                else:
+                    continue
+
+            if line.strip() == "end":
+                continue
+            elif "List of Commands" in line:
+                continue
+            # Filter blank lines and prepend +sign
+            elif line.strip():
+                if re.search(r"^no\s+", line.strip()):
+                    new_diff.append("-" + line)
+                else:
+                    new_diff.append("+" + line)
+        return "\n".join(new_diff)
+
+    @staticmethod
+    def _normalize_merge_diff(diff):
+        """Make compare_config() for merge look similar to replace config diff."""
+        new_diff = []
+        for line in diff.splitlines():
+            # Filter blank lines and prepend +sign
+            if line.strip():
+                new_diff.append("+" + line)
+        if new_diff:
+            new_diff.insert(0, "! incremental-diff failed; falling back to echo of merge file")
+        else:
+            new_diff.append("! No changes specified in merge file.")
+        return "\n".join(new_diff)
+
+    def _commit_hostname_handler(self, cmd):
+        """Special handler for hostname change on commit operation."""
+        current_prompt = self.device.find_prompt().strip()
+        terminating_char = current_prompt[-1]
+        pattern = r"[>#{}]\s*$".format(terminating_char)
+        # Look exclusively for trailing pattern that includes '#' and '>'
+        output = self.device.send_command_expect(cmd, expect_string=pattern)
+        # Reset base prompt in case hostname changed
+        self.device.set_base_prompt()
+        return output
+
+    def _discard_config(self):
+        """Set candidate_cfg to current running-config. Erase the merge_cfg file."""
+        self._current_merge_candidate = None
+        self._current_merge_candidate_tmp_file = False
+
+        if self.has_slot:
+            discard_candidate = "copy running-config slot1 {}".format(self.candidate_cfg)
+            discard_merge = "delete slot1 {}".format(self.merge_cfg)
+            self.device.send_command_expect(discard_candidate)
+            self.device.send_command_expect(discard_merge)
+
+    def _scp_file(self, source_file, dest_file, file_system):
+        """
+        SCP file to remote device.
+
+        Return (status, msg)
+        status = boolean
+        msg = details on what happened
+        """
+        return self._xfer_file(
+            source_file=source_file, dest_file=dest_file, file_system=file_system, transfer_class=NetironFileTransfer
+        )
+
+    def _xfer_file(
+        self, source_file=None, source_config=None, dest_file=None, file_system=None, transfer_class=NetironFileTransfer
+    ):
+
+        """
+        Transfer file to remote device.
+
+        Return (status, msg)
+        status = boolean
+        msg = details on what happened
+        """
+        if not source_file and not source_config:
+            raise ValueError("File source not specified for transfer.")
+
+        if not dest_file or not file_system:
+            raise ValueError("Destination file or file system not specified.")
+
+        if source_file:
+            kwargs = dict(
+                ssh_conn=self.device,
+                source_file=source_file,
+                dest_file=dest_file,
+                direction="put",
+                file_system=file_system,
+            )
+        else:
+            kwargs = dict(
+                ssh_conn=self.device,
+                source_config=source_config,
+                dest_file=dest_file,
+                direction="put",
+                file_system=file_system,
+            )
+
+        with transfer_class(**kwargs) as transfer:
+            print(type(transfer))
+            # Check if file already exists Note Brocade doesn't support checksum or MD5 sum so if it
+            # exists then raise an error as we have no way to determine if the content matches the
+            # desired content
+            if transfer.check_file_exists():
+                return (False, "File already exists")
+
+            if not transfer.verify_space_available():
+                return (False, "Insufficient space available on remote device")
+
+            show_cmd = "sh ip ssh config | include SCP"
+            output = self.device.send_command_expect(show_cmd)
+            if "Enabled" not in output:
+                msg = "SCP file transfers are not enabled. " "Configure 'ip ssh scp enable' on the device."
+                raise CommandErrorException(msg)
+
+            # Transfer file
+            transfer.transfer_file()
+
+            # brocade does NOT support a checksum or md5sum functions
+            # simple check for the existence of the file and size
+            if transfer.verify_file():
+                msg = "File successfully transferred to remote device"
+                return (True, msg)
+            else:
+                return (False, "File transfer to remote device failed")
+        return (False, "")
+
+    def _check_file_exists(self, cfg_path, cfg_file):
+        """
+        Check that the file exists on remote device using full path.
+
+        cfg_file is full path i.e. /flash/file_name
+
+        For example
+        dir /flash/merge_config.txt
+        Directory of /flash/
+
+        06/19/2018 18:52:52                      13 merge_config.txt
+
+                         1 File(s)               13 bytes
+                         0 Dir(s)         6,553,600 bytes free
+
+
+        return boolean
+        """
+
+        cmd = "dir {0}/{1}".format(cfg_path, cfg_file)
+        output = self.device.send_command_expect(cmd)
+        logger.info("cmd: {0} output: {1}".format(cmd, output))
+        if "Error opening" in output:
+            return False
+        elif cfg_file in output:
+            return True
+        return False
+
+    @staticmethod
+    def _send_command_postprocess(output):
+        """
+        Cleanup actions on send_command() for NAPALM getters.
+
+        Remove "Load for five sec; one minute if in output"
+        Remove "Time source is"
+        """
+        output = re.sub(r"^Load for five secs.*$", "", output, flags=re.M)
+        output = re.sub(r"^Time source is .*$", "", output, flags=re.M)
+        return output.strip()
+
+    @staticmethod
+    def __parse_port_change__(last_str):
+        r1 = re.match(r"(\d+) days (\d+):(\d+):(\d+)", last_str)
+        if r1:
+            days = int(r1.group(1))
+            hours = int(r1.group(2))
+            mins = int(r1.group(3))
+            secs = int(r1.group(4))
+
+            return float(secs + (mins * 60) + (hours * 60 * 60) + (days * 24 * 60 * 60))
+        else:
+            return float(-1.0)
+
+    def _delete_keys_from_dict(self, dict_del, lst_keys):
+        for k in lst_keys:
+            try:
+                del dict_del[k]
+            except KeyError:
+                pass
+        for v in dict_del.values():
+            if isinstance(v, dict):
+                self._delete_keys_from_dict(v, lst_keys)
+
+        return dict_del
+
+    def _get_interface_detail(self, port):
+        description = None
+        mac = None
+        if port == "mgmt1":
+            command = "show interface management1"
+        else:
+            command = "show interface ethernet {}".format(port)
+        output = self.device.send_command(command, delay_factor=self._show_command_delay_factor)
+        output = output.split("\n")
+
+        last_flap = "0.0"
+        speed = "0"
+        for line in output:
+            # Port state change is only supported from >5.9? (no support in 5.7b)
+            r0 = re.match(r"\s+Port state change time: \S+\s+\d+\s+\S+\s+\((.*) ago\)", line)
+            if r0:
+                last_flap = self.__class__.__parse_port_change__(r0.group(1))
+            r1 = re.match(r"\s+No port name", line)
+            if r1:
+                description = ""
+            r2 = re.match(r"\s+Port name is (.*)", line)
+            if r2:
+                description = r2.group(1)
+            r3 = re.match(r"\s+Hardware is \S+, address is (\S+) (.+)", line)
+            if r3:
+                mac = r3.group(1)
+            # Empty modules may not report the speed
+            # Configured fiber speed auto, configured copper speed auto
+            # actual unknown, configured fiber duplex fdx, configured copper duplex fdx, actual unknown
+            r4 = re.match(r"\s+Configured speed (\S+),.+", line)
+            if r4:
+                speed = r4.group(1)
+                if "auto" in speed:
+                    speed = -1
+                else:
+                    r = re.match(r"(\d+)([M|G])bit", speed)
+                    if r:
+                        speed = r.group(1)
+                        if r.group(2) == "M":
+                            speed = int(speed) * 1000
+                        elif r.group(2) == "G":
+                            speed = int(speed) * 1000000
+
+        return [last_flap, description, speed, mac]
+
+    def _get_interface_map(self):
+        """Return dict mapping ethernet port numbers to full interface name, ie
+
+        {
+            "1/1": "GigabitEthernet1/1",
+            ...
+        }
+        """
+
+        if not self.show_int or "pytest" in sys.modules:
+            self.show_int = self.device.send_command_timing(
+                "show interface", delay_factor=self._show_command_delay_factor
+            )
+        info = textfsm_extractor(self, "show_interface", self.show_int)
+
+        result = {}
+        for interface in info:
+            if "ethernet" in interface["port"].lower() and "mgmt" not in interface["port"].lower():
+                ifnum = re.sub(r".*(\d+/\d+)", "\\1", interface["port"])
+                result[ifnum] = interface["port"]
+
+        return result
+
+    def standardize_interface_name(self, port):
+        if not self.interface_map or "pytest" in sys.modules:
+            self.interface_map = self._get_interface_map()
+
+        port = str(port).strip()
+
+        # Convert lbX to LoopbackX
+        port = re.sub(r"^lb(\d+)$", "Loopback\\1", port)
+        # Convert loopbackX to LoopbackX
+        port = re.sub(r"^loopback(\d+)$", "Loopback\\1", port)
+        # Convert tnX to tunnelX
+        port = re.sub(r"^tn(\d+)$", "Tunnel\\1", port)
+        # Conver gre-tnlX to TunnelX
+        port = re.sub(r"^gre-tnl(\d+)$", "Tunnel\\1", port)
+        # Convert veX to VeX
+        port = re.sub(r"^ve(\d+)$", "Ve\\1", port)
+        # Convert mgmt1 to Ethernetmgmt1
+        if port in ["mgmt1", "management1"]:
+            port = "Ethernetmgmt1"
+        # Convert 1/1 or ethernet1/1 to ethernet1/1
+        if re.match(r".*\d+/\d+", port):
+            ifnum = re.sub(r".*(\d+/\d+)", "\\1", port)
+            port = self.interface_map[ifnum]
+
+        return port
+
+    def get_lags(self):
+        result = {}
+
+        if not self.show_running_config_lag or "pytest" in sys.modules:
+            self.show_running_config_lag = self.device.send_command_timing(
+                "show running-config lag", delay_factor=self._show_command_delay_factor
+            )
+        info = textfsm_extractor(self, "show_running_config_lag", self.show_running_config_lag)
+        for lag in info:
+            port = "lag{}".format(lag["id"])
+            result[port] = {
+                "is_up": True,
+                "is_enabled": True,
+                "description": lag["name"],
+                "last_flapped": float(-1),
+                "speed": float(0),
+                "mac_address": "",
+                "mtu": 0,
+                "children": self.interfaces_to_list(lag["ports"]),
+            }
+
+        return result
+
+    def interface_list_conversation(self, ve, taggedports, untaggedports):
+        interfaces = []
+        if ve and ve != "NONE":
+            interfaces.append("Ve{}".format(ve))
+        if taggedports:
+            interfaces.extend(self.interfaces_to_list(taggedports))
+        if untaggedports:
+            interfaces.extend(self.interfaces_to_list(untaggedports))
+        return interfaces
+
+    def interfaces_to_list(self, interfaces_string):
+        """Convert string like 'ethe 2/1 ethe 2/4 to 2/5' or 'e 2/1 to 2/4' to list of interfaces"""
+        interfaces = []
+
+        if "ethernet" in interfaces_string:
+            split_string = "ethernet"
+        elif "ethe" in interfaces_string:
+            split_string = "ethe"
+        else:
+            split_string = "e"
+
+        sections = interfaces_string.split(split_string)
+        if "" in sections:
+            sections.remove("")  # Remove empty list items
+        for section in sections:
+            section = section.strip()  # Remove leading/trailing spaces
+
+            # Process sections like 2/4 to 2/6
+            if "to" in section:
+                start_intf, end_intf = section.split(" to ")
+                slot, num = start_intf.split("/")
+                slot, end_num = end_intf.split("/")
+                num = int(num)
+                end_num = int(end_num)
+
+                while num <= end_num:
+                    intf_name = "{}/{}".format(slot, num)
+                    interfaces.append(self.standardize_interface_name(intf_name))
+                    num += 1
+
+            # Individual ports like '2/1'
+            else:
+                interfaces.append(self.standardize_interface_name(section))
+
+        return interfaces
+
+    @staticmethod
+    def bgp_time_conversion(bgp_uptime):
+        """
+        Convert string time to seconds.
+
+        Examples
+        00:14:23
+        00:13:40
+        00:00:21
+        00:00:13
+        00:00:49
+        1d11h
+        1d17h
+        1w0d
+        8w5d
+        1y28w
+        never
+        """
+        bgp_uptime = bgp_uptime.strip()
+        uptime_letters = set(["w", "h", "d"])
+
+        if "never" in bgp_uptime:
+            return -1
+        elif ":" in bgp_uptime:
+            times = bgp_uptime.split(":")
+            times = [int(x) for x in times]
+            hours, minutes, seconds = times
+            return (hours * 3600) + (minutes * 60) + seconds
+        # Check if any letters 'w', 'h', 'd' are in the time string
+        elif uptime_letters & set(bgp_uptime):
+            form1 = r"(\d+)d(\d+)h"  # 1d17h
+            form2 = r"(\d+)w(\d+)d"  # 8w5d
+            form3 = r"(\d+)y(\d+)w"  # 1y28w
+            match = re.search(form1, bgp_uptime)
+            if match:
+                days = int(match.group(1))
+                hours = int(match.group(2))
+                return (days * DAY_SECONDS) + (hours * 3600)
+            match = re.search(form2, bgp_uptime)
+            if match:
+                weeks = int(match.group(1))
+                days = int(match.group(2))
+                return (weeks * WEEK_SECONDS) + (days * DAY_SECONDS)
+            match = re.search(form3, bgp_uptime)
+            if match:
+                years = int(match.group(1))
+                weeks = int(match.group(2))
+                return (years * YEAR_SECONDS) + (weeks * WEEK_SECONDS)
+        raise ValueError("Unexpected value for BGP uptime string: {}".format(bgp_uptime))
+
+    def __get_bgp_route_stats__(self, remote_addr):
+
+        afi = "ipv4" if remote_addr.version == 4 else "ipv6"
+        command = "show ip{0} bgp neighbors {1} routes-summary".format(
+            "" if remote_addr.version == 4 else "v6", str(remote_addr)
+        )
+        _lines = self.device.send_command(command, delay_factor=self._show_command_delay_factor)
+        _lines += _lines + "\n" if _lines else ""
+
+        _stats = {
+            "received_prefixes": -1,
+            "accepted_prefixes": -1,
+            "filtered_prefixes": -1,
+            "sent_prefixes": -1,
+            "to_send_prefixes": -1,
+        }
+
+        for line in _lines.splitlines():
+            r1 = re.match(
+                r"^Routes Accepted/Installed:\s*(?P<accepted_prefixes>\d+),\s+"
+                r"Filtered/Kept:\s*(?P<filtered_kept>\d+),\s+"
+                r"Filtered:\s*(?P<filtered_prefixes>\d+)",
+                line,
+            )
+            if r1:
+                _received_prefixes = int(r1.group("accepted_prefixes")) + int(r1.group("filtered_prefixes"))
+                _stats["received_prefixes"] = _received_prefixes
+                _stats["accepted_prefixes"] = r1.group("accepted_prefixes")
+                _stats["filtered_prefixes"] = r1.group("filtered_prefixes")
+
+            r2 = re.match(
+                r"^Routes Advertised:\s*(?P<sent_prefixes>\d+),\s+"
+                r"To be Sent:\s*(?P<to_be_sent>\d+),\s+"
+                r"To be Withdrawn:\s*(?P<to_be_withdrawn>\d+)",
+                line,
+            )
+            if r2:
+                _stats["sent_prefixes"] = r2.group("sent_prefixes")
+                _stats["to_send_prefixes"] = r2.group("to_be_sent")
+
+        return {afi: _stats}
+
+        def _parse_per_peer_bgp_detail(peer_output):
+            """This function parses the raw data per peer and returns a
+            json structure per peer.
+            """
+
+            int_fields = [
+                "local_as",
+                "remote_as",
+                "local_port",
+                "remote_port",
+                "local_port",
+                "input_messages",
+                "output_messages",
+                "input_updates",
+                "output_updates",
+                "messages_queued_out",
+                "holdtime",
+                "configured_holdtime",
+                "keepalive",
+                "configured_keepalive",
+                "advertised_prefix_count",
+                "received_prefix_count",
+            ]
+
+            peer_details = []
+
+            # Using preset template to extract peer info
+            _peer_info = napalm.base.helpers.textfsm_extractor(self, "bgp_detail", peer_output)
+
+            for item in _peer_info:
+
+                # Determining a few other fields in the final peer_info
+                item["up"] = True if item["connection_state"] == "ESTABLISHED" else False
+                item["local_address_configured"] = True if item["local_address"] else False
+                item["multihop"] = True if item["multihop"] == "yes" else False
+                item["remove_private_as"] = True if item["remove_private_as"] == "yes" else False
+
+                # TODO: The below fields need to be retrieved
+                # Currently defaulting their values to False or 0
+                item["multipath"] = False
+                item["suppress_4byte_as"] = False
+                item["local_as_prepend"] = False
+                item["flap_count"] = 0
+                item["active_prefix_count"] = 0
+                item["suppressed_prefix_count"] = 0
+
+                # Converting certain fields into int
+                for key in int_fields:
+                    if key in item:
+                        item[key] = napalm.base.helpers.convert(int, item[key], 0)
+
+                # process maps and lists
+                for f in ["route_map", "filter_list", "prefix_list"]:
+                    _val = item.get(f)
+                    if _val is not None:
+                        r = _val.split()
+                        if r:
+                            # print 'r: ', r
+                            # print len(r)
+                            _name = "policy" if f == "route_map" else f
+                            if len(r) >= 2:
+                                item[
+                                    "{0}_{1}".format("import" if "in" in r[0] else "export", _name)
+                                ] = napalm.base.helpers.convert(str, r[1])
+
+                            if len(r) == 4:
+                                item[
+                                    "{0}_{1}".format("import" if "in" in r[2] else "export", _name)
+                                ] = napalm.base.helpers.convert(str, r[3])
+
+                        # remove raw data from item
+                        item.pop(f, None)
+
+                # Conforming with the datatypes defined by the base class
+                item["description"] = napalm.base.helpers.convert(str, item.get("description", ""))
+                item["peer_group"] = napalm.base.helpers.convert(str, item.get("peer_group", ""))
+                item["remote_address"] = napalm.base.helpers.ip(item["remote_address"])
+                item["previous_connection_state"] = napalm.base.helpers.convert(str, item["previous_connection_state"])
+                item["connection_state"] = napalm.base.helpers.convert(str, item["connection_state"])
+                item["routing_table"] = napalm.base.helpers.convert(str, item["routing_table"])
+                item["router_id"] = napalm.base.helpers.ip(item["router_id"])
+                item["local_address"] = napalm.base.helpers.convert(napalm.base.helpers.ip, item["local_address"])
+
+                peer_details.append(item)
+
+            return peer_details
+
+        def _append(bgp_dict, peer_info):
+
+            remote_as = peer_info["remote_as"]
+            vrf_name = peer_info["routing_table"]
+
+            if vrf_name not in bgp_dict.keys():
+                bgp_dict[vrf_name] = {}
+            if remote_as not in bgp_dict[vrf_name].keys():
+                bgp_dict[vrf_name][remote_as] = []
+
+            bgp_dict[vrf_name][remote_as].append(peer_info)
+
+        _peer_ver = None
+        bgp_summary = [list(), list()]
+        raw_output = [list(), list()]
+        bgp_detail_info = dict()
+
+        # used to hold Address Family specific peer info
+        _peer_info_af = [list(), list()]
+
+        if not neighbor_address:
+            """
+            raw_output[0] = self.device.send_command(
+                'show ip bgp neighbors', delay_factor=self._show_command_delay_factor)
+            raw_output[1] = self.device.send_command(
+                'show ipv6 bgp neighbors', delay_factor=self._show_command_delay_factor)
+            """
+            bgp_summary[0] = __process_bgp_summary_data__(
+                self.device.send_command("show ip bgp summary", delay_factor=self._show_command_delay_factor)
+            )
+            bgp_summary[1] = __process_bgp_summary_data__(
+                self.device.send_command("show ipv6 bgp summary", delay_factor=self._show_command_delay_factor)
+            )
+
+            # Using preset template to extract peer info
+            _peer_info_af[0] = _parse_per_peer_bgp_detail(
+                self.device.send_command("show ip bgp neighbors", delay_factor=self._show_command_delay_factor)
+            )
+            _peer_info_af[1] = _parse_per_peer_bgp_detail(
+                self.device.send_command("show ipv6 bgp neighbors", delay_factor=self._show_command_delay_factor)
+            )
+
+        else:
+            try:
+                _peer_ver = IPAddress(neighbor_address).version
+            except Exception as e:
+                raise e
+
+            _ver = "" if _peer_ver == 4 else "v6"
+
+            if _peer_ver == 4:
+                """
+                raw_output[0] = self.device.send_command(
+                    'show ip bgp neighbors {}'.format(neighbor_address),
+                    delay_factor=self._show_command_delay_factor)
+                """
+                bgp_summary[0] = __process_bgp_summary_data__(
+                    self.device.send_command("show ip bgp summary", delay_factor=self._show_command_delay_factor)
+                )
+                _peer_info_af[0] = _parse_per_peer_bgp_detail(
+                    self.device.send_command(
+                        "show ip bgp neighbors {}".format(neighbor_address),
+                        delay_factor=self._show_command_delay_factor,
+                    )
+                )
+            else:
+                """
+                raw_output[1] = self.device.send_command(
+                    'show ipv6 bgp neighbors {}'.format(neighbor_address),
+                    delay_factor=self._show_command_delay_factor)
+                """
+                bgp_summary[1] = __process_bgp_summary_data__(
+                    self.device.send_command("show ipv6 bgp summary", delay_factor=self._show_command_delay_factor)
+                )
+                _peer_info_af[1] = _parse_per_peer_bgp_detail(
+                    self.device.send_command(
+                        "show ipv6 bgp neighbors {}".format(neighbor_address),
+                        delay_factor=self._show_command_delay_factor,
+                    )
+                )
+
+        for i, info in enumerate(_peer_info_af):
+            for peer_info in info:
+
+                _peer_remote_addr = peer_info.get("remote_address")
+
+                try:
+                    _bgp_summary = bgp_summary[i]["global"]["peers"].get(_peer_remote_addr)
+                    if _bgp_summary:
+                        peer_info["local_as"] = _bgp_summary["local_as"]
+
+                        _afi_info = _bgp_summary["address_family"].get("ipv4" if i == 0 else "ipv6")
+                        if _afi_info:
+                            peer_info["suppressed_prefix_count"] = int(_afi_info.get("filtered_prefixes", 0))
+                            peer_info["advertised_prefix_count"] = int(_afi_info.get("sent_prefixes", 0))
+                            peer_info["accepted_prefix_count"] = int(_afi_info.get("accepted_prefixes", 0))
+                except:
+                    pass
+
+                _append(bgp_detail_info, peer_info)
+
+        return bgp_detail_info
 
     @property
     def dest_file_system(self):
