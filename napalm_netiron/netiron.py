@@ -1554,44 +1554,6 @@ class NetIronDriver(NetworkDriver):
                             "output": "N/A",
                         }
 
-        """
-        print(json.dumps(_data, indent=2))
-
-        lines = lines.split("\n")
-
-        lines = lines[3:]
-        for line in lines:
-            # Power 2: Installed (Failed or Disconnected)
-            r1 = re.match(r'^Power\s+(\d+):\s+Installed \(Failed or Disconnected\)', line)
-            # Power 7: (23-yyyyyyyy xxxxxxxxx  - AC 1800W): Installed (OK)
-            r2 = re.match(r'^Power\s+(\d+):\s+.*AC\s+(\S+)\): Installed \(OK\)', line)
-            # CER: Power 1 ( 3I50    - AC 504W): Installed (OK)
-            r3 = re.match(r'^Power\s+(\d+)\s+.*AC\s+(\S+)\): Installed \(OK\)', line)
-            if r1:
-                psu = r1.group(1)
-                environment['power'][psu] = dict()
-                environment[psu] = {'status': False, 'capacity': 'N/A', 'output': 'N/A'}
-            elif r2:
-                psu = r2.group(1)
-                environment['power'][psu] = dict()
-                environment['power'][psu] = {'status': True, 'capacity': r2.group(2), 'output': 'N/A'}
-            elif r3:
-                psu = r3.group(1)
-                environment['power'][psu] = dict()
-                environment['power'][psu] = {'status': True, 'capacity': r3.group(2), 'output': 'N/A'}
-
-            # Back Fan A-1: Status = OK, Speed = MED (60%)
-
-            r3 = re.match(r'^(.*):\s+Status = (\S+),\s+Speed\s+=\s+(\S+)\s+\((\d+)%\)', line)
-            if r3:
-                fan = r3.group(1)
-                status = False
-                if r3.group(2) == "OK":
-                    status = True
-
-                environment['fans'][fan] = {'status': status}
-        """
-
         return environment
 
     def get_arp_table(self, vrf=""):
