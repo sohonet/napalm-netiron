@@ -1,3 +1,4 @@
 netmiko>=1.4.3
 netaddr
 napalm>=2
+tftpy
