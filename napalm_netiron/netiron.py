@@ -348,7 +348,7 @@ class NetIronDriver(NetworkDriver):
 
     def discard_config(self):
         """Discard loaded candidate configurations."""
-        self._discard_config()
+        self.merge_candidate = False
 
     def get_optics(self):
         """
