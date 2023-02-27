@@ -2153,12 +2153,12 @@ class NetIronDriver(NetworkDriver):
 
         if retrieve in ("startup", "all"):
             command = "show configuration"
-            output = self._send_command(command)
+            output = self.device.send_command_timing(command)
             configs["startup"] = output
 
         if retrieve in ("running", "all"):
             command = "show running-config"
-            output = self._send_command(command)
+            output = self.device.send_command_timing(command)
             configs["running"] = output
 
         return configs
