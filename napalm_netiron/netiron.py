@@ -333,7 +333,6 @@ class NetIronDriver(NetworkDriver):
             raise MergeConfigException("No merge candidate loaded")
 
         with tempfile.TemporaryDirectory() as temp_dir:
-
             # Setup TFTP server
             tftp_server = tftpy.TftpServer(tftproot=temp_dir, dyn_file_func=self._tftp_handler(self.merge_candidate))
             tftp_thread = Thread(target=tftp_server.listen)
@@ -775,7 +774,6 @@ class NetIronDriver(NetworkDriver):
             return {"error": "No matching BGP routes found"}
 
         for line in _lines.splitlines():
-
             r2 = re.match(r"^\s*AS_PATH:\s+(?P<path>(.*))", line)
             if r2 and r1:
                 _routes.append(
@@ -1252,7 +1250,6 @@ class NetIronDriver(NetworkDriver):
             _peer_info = napalm_base.helpers.textfsm_extractor(self, "bgp_detail", peer_output)
 
             for item in _peer_info:
-
                 # Determining a few other fields in the final peer_info
                 item["up"] = True if item["connection_state"] == "ESTABLISHED" else False
                 item["local_address_configured"] = True if item["local_address"] else False
@@ -1306,7 +1303,6 @@ class NetIronDriver(NetworkDriver):
             return peer_details
 
         def _append(bgp_dict, peer_info):
-
             remote_as = peer_info["remote_as"]
             vrf_name = peer_info["routing_table"]
 
@@ -1388,7 +1384,6 @@ class NetIronDriver(NetworkDriver):
 
         for i, info in enumerate(_peer_info_af):
             for peer_info in info:
-
                 _peer_remote_addr = peer_info.get("remote_address")
 
                 try:
@@ -2089,7 +2084,6 @@ class NetIronDriver(NetworkDriver):
         return traceroute_dict
 
     def get_network_instances(self, name=""):
-
         instances = {}
 
         show_vrf_detail = self.device.send_command("show vrf detail")
@@ -2125,7 +2119,6 @@ class NetIronDriver(NetworkDriver):
         return instances if not name else instances[name]
 
     def get_static_routes(self):
-
         routes = []
 
         show_running_config = self.device.send_command("show running-config")
@@ -2438,7 +2431,6 @@ class NetIronDriver(NetworkDriver):
         return interfaces
 
     def __get_bgp_route_stats__(self, remote_addr):
-
         afi = "ipv4" if remote_addr.version == 4 else "ipv6"
         command = "show ip{0} bgp neighbors {1} routes-summary".format(
             "" if remote_addr.version == 4 else "v6", str(remote_addr)
