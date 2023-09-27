@@ -643,7 +643,7 @@ class NetIronDriver(NetworkDriver):
             }
 
         if not self.show_vlan or "pytest" in sys.modules:
-            self.show_vlan = self.device.send_command("show vlan")
+            self.show_vlan = self.device.send_command("show vlan", read_timeout=self.timeout)
         info = textfsm_extractor(self, "show_vlan", self.show_vlan)
 
         # Assign VLANs to interfaces
@@ -679,7 +679,7 @@ class NetIronDriver(NetworkDriver):
 
     def get_vlans(self):
         if not self.show_vlan or "pytest" in sys.modules:
-            self.show_vlan = self.device.send_command("show vlan")
+            self.show_vlan = self.device.send_command("show vlan", read_timeout=self.timeout)
         info = textfsm_extractor(self, "show_vlan", self.show_vlan)
 
         result = {}
