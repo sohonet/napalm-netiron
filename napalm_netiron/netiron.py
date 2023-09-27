@@ -474,13 +474,8 @@ class NetIronDriver(NetworkDriver):
                 seconds = int(r1.group(5))
                 uptime = seconds + minutes * 60 + hours * 3600 + days * 86400
 
-        # the following is expensive -- should use SNMP GET instead
-        command = "show running-config | include ^hostname"
-        lines = self.device.send_command(command, delay_factor=self._show_command_delay_factor)
-        for line in lines.splitlines():
-            r1 = re.match(r"^hostname (\S+)", line)
-            if r1:
-                hostname = r1.group(1)
+        # Infer hostname from the prompt
+        hostname = self.device.base_prompt.replace("SSH@", "")
 
         facts = {
             "uptime": float(uptime),
