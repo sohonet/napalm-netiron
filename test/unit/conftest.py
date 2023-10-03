@@ -49,6 +49,9 @@ class PatchedNetIronDriver(NetIronDriver):
 class FakeNetironDevice(BaseTestDouble):
     """Netiron device test double."""
 
+    def __init__(self):
+        self.base_prompt = "SSH@SWITCH1"
+
     def send_command(self, command, **kwargs):
         filename = "{}.text".format(self.sanitize_text(command))
         full_path = self.find_file(filename)
