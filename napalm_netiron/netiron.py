@@ -2117,7 +2117,7 @@ class NetIronDriver(NetworkDriver):
         routes = []
 
         show_running_config = self.device.send_command_timing(
-            "show running-config interface", delay_factor=self._show_command_delay_factor
+            "show running-config", delay_factor=self._show_command_delay_factor
         )
         static_routes_detail = textfsm_extractor(self, "static_route_details", show_running_config)
 
