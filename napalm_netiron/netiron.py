@@ -1031,7 +1031,7 @@ class NetIronDriver(NetworkDriver):
                 line,
             )
             if r2:
-                remote_addr = napalm.base.helpers.IPAddress(r2.group("remote_addr"))
+                remote_addr = IPAddress(r2.group("remote_addr"))
 
                 afi = "ipv4" if remote_addr.version == 4 else "ipv6"
                 received_prefixes = int(r2.group("accepted_prefixes")) + int(r2.group("filtered_prefixes"))
@@ -1063,7 +1063,7 @@ class NetIronDriver(NetworkDriver):
                 logger.info("brocade overflow bug: line: {}".format(line))
                 logger.info(r2.group())
                 try:
-                    remote_addr = napalm.base.helpers.IPAddress(r2.group("remote_addr"))
+                    remote_addr = IPAddress(r2.group("remote_addr"))
                     bgp_data["global"]["peers"][str(remote_addr)] = {
                         "local_as": local_as,
                         "remote_as": r2.group("remote_as"),
@@ -1172,7 +1172,7 @@ class NetIronDriver(NetworkDriver):
                     line,
                 )
                 if r2:
-                    remote_addr = napalm.base.helpers.IPAddress(r2.group("remote_addr"))
+                    remote_addr = IPAddress(r2.group("remote_addr"))
 
                     afi = "ipv4" if remote_addr.version == 4 else "ipv6"
                     received_prefixes = int(r2.group("accepted_prefixes")) + int(r2.group("filtered_prefixes"))
@@ -1204,7 +1204,7 @@ class NetIronDriver(NetworkDriver):
                     logger.info("brocade overflow bug: line: {}".format(line))
                     logger.info(r2.group())
                     try:
-                        remote_addr = napalm.base.helpers.IPAddress(r2.group("remote_addr"))
+                        remote_addr = IPAddress(r2.group("remote_addr"))
                         bgp_data["global"]["peers"][str(remote_addr)] = {
                             "local_as": local_as,
                             "remote_as": r2.group("remote_as"),
