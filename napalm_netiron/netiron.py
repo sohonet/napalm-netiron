@@ -2207,8 +2207,6 @@ class NetIronDriver(NetworkDriver):
     def get_ldp_sessions(self):
         """Return the MPLS LDP sessions from "show mpls ldp session detail".
 
-        Targeted sessions have no interfaces.
-
         Example output:
         [
             {
@@ -2237,8 +2235,8 @@ class NetIronDriver(NetworkDriver):
                 "up_time": session["uptime"],
                 "interfaces": [
                     self.standardize_interface_name(re.sub(r"\(Trunk\d+\)$", "", interface))
-                    for interface in session["interfaces"].split()
-                    if interface != "(targeted)"
+                    for interface in re.split(r"[,\s]+", session["interfaces"])
+                    if interface and interface != "(targeted)"
                 ],
             }
             for session in info

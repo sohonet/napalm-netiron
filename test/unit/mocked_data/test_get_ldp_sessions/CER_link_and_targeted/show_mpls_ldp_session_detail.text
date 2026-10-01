@@ -1,0 +1,43 @@
+ Number of link LDP sessions: 2
+ Number of Operational link LDP sessions: 2
+ Number of targeted LDP sessions: 0
+ Number of Operational targeted LDP sessions: 0
+
+Peer LDP ID: 192.0.2.7:0, Local LDP ID: 192.0.2.9:0, State: Operational
+  Adj: Link, Role: Active, Next keepalive: 2 sec, Hold time left: 28 sec
+  Keepalive interval: 5 sec, Max hold time: 30 sec
+  Local keepalive timeout: 36 sec
+  Peer proposed keepalive timeout: 30 sec
+  Up time: 247 d 22 hr 13 min 46 sec
+  Neighboring interfaces: ve7, (targeted)
+  TCP connection: 192.0.2.9:9007--192.0.2.7:646, State: ESTABLISHED
+  Transport Address: lsr-id (192.0.2.9)
+  Next-hop addresses received from the peer:
+    198.51.100.131  192.0.2.7  198.51.100.133
+  IGP Sync:
+    Unrecognized Notification Capability: Local: Off, Remote: Off
+    Local State: In-sync, RemoteState: -
+    Rx label silence time: 1000 ms, Timer not running
+  Graceful restart: disabled
+  Number of FECs Received from peer: 3
+  Number of FECs installed from peer: 1
+  Number of FECs filtered for peer(in/out): 0/0
+Peer LDP ID: 192.0.2.8:0, Local LDP ID: 192.0.2.9:0, State: Operational
+  Adj: Link, Role: Active, Next keepalive: 4 sec, Hold time left: 35 sec
+  Keepalive interval: 6 sec, Max hold time: 36 sec
+  Local keepalive timeout: 36 sec
+  Peer proposed keepalive timeout: 36 sec
+  Up time: 603 d 23 hr 30 min 37 sec
+  Neighboring interfaces: ve5, (targeted)
+  TCP connection: 192.0.2.9:9004--192.0.2.8:646, State: ESTABLISHED
+  Transport Address: lsr-id (192.0.2.9)
+  Next-hop addresses received from the peer:
+    192.0.2.8  198.51.100.128  198.51.100.130
+  IGP Sync:
+    Unrecognized Notification Capability: Local: Off, Remote: Off
+    Local State: In-sync, RemoteState: -
+    Rx label silence time: 1000 ms, Timer not running
+  Graceful restart: disabled
+  Number of FECs Received from peer: 1
+  Number of FECs installed from peer: 1
+  Number of FECs filtered for peer(in/out): 0/0
