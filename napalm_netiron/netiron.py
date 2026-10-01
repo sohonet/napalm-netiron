@@ -35,7 +35,6 @@ Carles Kishimoto carles.kishimoto@gmail.com contributed the following which have
 
 """
 
-
 from __future__ import print_function
 from __future__ import unicode_literals
 
@@ -2371,14 +2370,24 @@ class NetIronDriver(NetworkDriver):
                 ports.append(self.standardize_interface_name(item))
         return ports
 
-    def get_config(self, retrieve="all"):
+    def get_config(self, retrieve="all", full=False, sanitized=False, format="text"):
         """Implementation of get_config for netiron.
 
         Returns the startup or/and running configuration as dictionary.
         The keys of the dictionary represent the type of configuration
         (startup or running). The candidate is always empty string,
         since netiron does not support candidate configuration.
+
+        The full, sanitized and format arguments are accepted for compatibility
+        with the napalm base driver, but only their defaults are supported.
         """
+
+        if full:
+            raise NotImplementedError("full config retrieval is not supported on NetIron")
+        if sanitized:
+            raise NotImplementedError("sanitized config retrieval is not supported on NetIron")
+        if format != "text":
+            raise NotImplementedError("only text config format is supported on NetIron")
 
         configs = {
             "startup": "",
