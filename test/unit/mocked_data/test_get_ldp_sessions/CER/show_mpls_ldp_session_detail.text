@@ -1,0 +1,62 @@
+ Number of link LDP sessions: 2
+ Number of Operational link LDP sessions: 1
+ Number of targeted LDP sessions: 1
+ Number of Operational targeted LDP sessions: 1
+
+Peer LDP ID: 192.0.2.4:0, Local LDP ID: 192.0.2.5:0, State: Operational
+  Adj: Link, Role: Active, Next keepalive: 0 sec, Hold time left: 34 sec
+  Keepalive interval: 6 sec, Max hold time: 36 sec
+  Local keepalive timeout: 36 sec
+  Peer proposed keepalive timeout: 36 sec
+  Up time: 89 d 16 hr 42 min 1 sec 
+  Neighboring interfaces: ve4
+  TCP connection: 192.0.2.5:9025--192.0.2.4:646, State: ESTABLISHED
+  Transport Address: lsr-id (192.0.2.5)
+  Next-hop addresses received from the peer:
+    192.0.2.4  198.51.100.6
+  IGP Sync:
+    Unrecognized Notification Capability: Local: Off, Remote: Off
+    Local State: In-sync, RemoteState: -
+    Rx label silence time: 1000 ms, Timer not running
+  Graceful restart: disabled
+  Number of FECs Received from peer: 45
+  Number of FECs installed from peer: 0
+  Number of FECs filtered for peer(in/out): 0/0
+Peer LDP ID: 192.0.2.2:0, Local LDP ID: 192.0.2.5:0, State: Initialized
+  Adj: Link, Role: Active, Next keepalive: 1 sec, Hold time left: 23 sec
+  Keepalive interval: 5 sec, Max hold time: 30 sec
+  Local keepalive timeout: 36 sec
+  Peer proposed keepalive timeout: 30 sec
+  Up time: 0 d 0 hr 0 min 12 sec 
+  Neighboring interfaces: ve60
+  TCP connection: 192.0.2.5:9027--192.0.2.2:646, State: ESTABLISHED
+  Transport Address: lsr-id (192.0.2.5)
+  Next-hop addresses received from the peer:
+    192.0.2.2
+  IGP Sync:
+    Unrecognized Notification Capability: Local: Off, Remote: Off
+    Local State: In-sync, RemoteState: -
+    Rx label silence time: 1000 ms, Timer not running
+  Graceful restart: disabled
+  Number of FECs Received from peer: 0
+  Number of FECs installed from peer: 0
+  Number of FECs filtered for peer(in/out): 0/0
+Peer LDP ID: 192.0.2.1:0, Local LDP ID: 192.0.2.5:0, State: Operational
+  Adj: Targeted, Role: Passive, Next keepalive: 0 sec, Hold time left: 35 sec
+  Keepalive interval: 6 sec, Max hold time: 36 sec
+  Local keepalive timeout: 36 sec
+  Peer proposed keepalive timeout: 36 sec
+  Up time: 532 d 4 hr 40 min 39 sec 
+  Neighboring interfaces: (targeted)
+  TCP connection: 192.0.2.5:646--192.0.2.1:9010, State: ESTABLISHED
+  Transport Address: lsr-id (192.0.2.5)
+  Next-hop addresses received from the peer:
+    192.0.2.1
+  IGP Sync:
+    Unrecognized Notification Capability: Local: Off, Remote: Off
+    Local State: In-sync, RemoteState: -
+    Rx label silence time: 1000 ms, Timer not running
+  Graceful restart: disabled
+  Number of FECs Received from peer: 1
+  Number of FECs installed from peer: 1
+  Number of FECs filtered for peer(in/out): 0/0

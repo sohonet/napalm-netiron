@@ -1,0 +1,5 @@
+Total Entries:3 R:RXRemote(Y:Yes/N:No)H:Hop(S:Single/M:Multi)
+NeighborAddress                        State  Interface       Holddown   Interval  R/H
+198.51.100.6                           UP     ve 4            600000     100000    Y/S
+198.51.100.8                           UP     ve 60           300000     100000    Y/S
+198.51.100.10                          DOWN   ve 13           300000     100000    N/S

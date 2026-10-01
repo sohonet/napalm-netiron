@@ -1,0 +1,32 @@
+[
+    {
+        "peer_ldp_id": "192.0.2.2",
+        "peer_label_space": 0,
+        "local_ldp_id": "192.0.2.1",
+        "state": "Operational",
+        "adjacency": "Link",
+        "role": "Active",
+        "up_time": "246 d 15 hr 48 min 46 sec",
+        "interfaces": ["10GigabitEthernet2/8"]
+    },
+    {
+        "peer_ldp_id": "192.0.2.10",
+        "peer_label_space": 0,
+        "local_ldp_id": "192.0.2.1",
+        "state": "Operational",
+        "adjacency": "Targeted",
+        "role": "Active",
+        "up_time": "532 d 5 hr 9 min 59 sec",
+        "interfaces": []
+    },
+    {
+        "peer_ldp_id": "192.0.2.3",
+        "peer_label_space": 0,
+        "local_ldp_id": "192.0.2.1",
+        "state": "Operational",
+        "adjacency": "Link",
+        "role": "Active",
+        "up_time": "28 d 1 hr 15 min 51 sec",
+        "interfaces": ["10GigabitEthernet2/5"]
+    }
+]

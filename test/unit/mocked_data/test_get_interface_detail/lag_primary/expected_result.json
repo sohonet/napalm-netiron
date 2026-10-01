@@ -1,0 +1,11 @@
+{
+    "name": "10GigabitEthernet2/5",
+    "link_status": "up",
+    "line_protocol_status": "up",
+    "description": "CO::AR-ROUTER-TST01::Eth28",
+    "untagged_vlan": 1,
+    "trunk_ports": ["10GigabitEthernet2/5", "10GigabitEthernet2/6", "10GigabitEthernet2/7"],
+    "trunk_role": "primary",
+    "mtu": 9216,
+    "ip_mtu": null
+}

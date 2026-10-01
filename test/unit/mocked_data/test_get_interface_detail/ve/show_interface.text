@@ -1,0 +1,64 @@
+10GigabitEthernet1/8 is up, line protocol is up
+  Hardware is 10GigabitEthernet, address is 0000.5e00.5301 (bia 0000.5e00.5301)
+  Configured speed 10Gbit, actual 10Gbit, configured duplex fdx, actual fdx
+  Member of Control VLAN 4095, VLAN 1 (untagged), port is in untagged mode, port state is Forwarding
+  Port name is TST-PORT
+  MTU 9216 bytes, encapsulation ethernet
+GigabitEthernet1/9 is up, line protocol is up
+  Hardware is 10GigabitEthernet, address is 0000.5e00.5301 (bia 0000.5e00.5301)
+  Configured speed 10Gbit, actual 10Gbit, configured duplex fdx, actual fdx
+  Member of Control VLAN 4095, VLAN 1 (untagged), port is in untagged mode, port state is Forwarding
+  Port name is TST-PORT
+  MTU 9216 bytes, encapsulation ethernet
+10GigabitEthernet1/11 is up, line protocol is up
+  Hardware is 10GigabitEthernet, address is 0000.5e00.5301 (bia 0000.5e00.5301)
+  Configured speed 10Gbit, actual 10Gbit, configured duplex fdx, actual fdx
+  Member of Control VLAN 4095, VLAN 1 (untagged), port is in untagged mode, port state is Forwarding
+  Port name is TST-PORT
+  MTU 9216 bytes, encapsulation ethernet
+10GigabitEthernet2/1 is up, line protocol is up
+  Hardware is 10GigabitEthernet, address is 0000.5e00.5301 (bia 0000.5e00.5301)
+  Configured speed 10Gbit, actual 10Gbit, configured duplex fdx, actual fdx
+  Member of Control VLAN 4095, VLAN 1 (untagged), port is in untagged mode, port state is Forwarding
+  Port name is TST-PORT
+  MTU 9216 bytes, encapsulation ethernet
+10GigabitEthernet2/3 is up, line protocol is up
+  Hardware is 10GigabitEthernet, address is 0000.5e00.5301 (bia 0000.5e00.5301)
+  Configured speed 10Gbit, actual 10Gbit, configured duplex fdx, actual fdx
+  Member of Control VLAN 4095, VLAN 1 (untagged), port is in untagged mode, port state is Forwarding
+  Port name is TST-PORT
+  MTU 9216 bytes, encapsulation ethernet
+10GigabitEthernet2/5 is up, line protocol is up
+  Hardware is 10GigabitEthernet, address is 0000.5e00.5301 (bia 0000.5e00.5301)
+  Configured speed 10Gbit, actual 10Gbit, configured duplex fdx, actual fdx
+  Member of Control VLAN 4095, VLAN 1 (untagged), port is in untagged mode, port state is Forwarding
+  Port name is TST-PORT
+  MTU 9216 bytes, encapsulation ethernet
+10GigabitEthernet2/6 is up, line protocol is up
+  Hardware is 10GigabitEthernet, address is 0000.5e00.5301 (bia 0000.5e00.5301)
+  Configured speed 10Gbit, actual 10Gbit, configured duplex fdx, actual fdx
+  Member of Control VLAN 4095, VLAN 1 (untagged), port is in untagged mode, port state is Forwarding
+  Port name is TST-PORT
+  MTU 9216 bytes, encapsulation ethernet
+10GigabitEthernet2/7 is up, line protocol is up
+  Hardware is 10GigabitEthernet, address is 0000.5e00.5301 (bia 0000.5e00.5301)
+  Configured speed 10Gbit, actual 10Gbit, configured duplex fdx, actual fdx
+  Member of Control VLAN 4095, VLAN 1 (untagged), port is in untagged mode, port state is Forwarding
+  Port name is TST-PORT
+  MTU 9216 bytes, encapsulation ethernet
+10GigabitEthernet2/8 is up, line protocol is up
+  Hardware is 10GigabitEthernet, address is 0000.5e00.5301 (bia 0000.5e00.5301)
+  Configured speed 10Gbit, actual 10Gbit, configured duplex fdx, actual fdx
+  Member of Control VLAN 4095, VLAN 1 (untagged), port is in untagged mode, port state is Forwarding
+  Port name is TST-PORT
+  MTU 9216 bytes, encapsulation ethernet
+Ve4 is up, line protocol is up
+  Type is Vlan (Vlan Id: 4)
+  Hardware is Virtual Ethernet, address is 0000.5e00.5302 (bia 0000.5e00.5302)
+  Port name is TST-VE
+  Internet address is 198.51.100.7/31, IP MTU 1500 bytes, encapsulation ethernet
+Ve13 is up, line protocol is up
+  Type is Vlan (Vlan Id: 13)
+  Hardware is Virtual Ethernet, address is 0000.5e00.5302 (bia 0000.5e00.5302)
+  Port name is TST-VE
+  Internet address is 198.51.100.11/31, IP MTU 9194 bytes, encapsulation ethernet

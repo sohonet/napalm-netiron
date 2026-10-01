@@ -1,0 +1,29 @@
+[
+    {
+        "neighbor_address": "198.51.100.6",
+        "state": "UP",
+        "interface": "Ve4",
+        "holddown": 600000,
+        "interval": 100000,
+        "remote_rx": true,
+        "multihop": false
+    },
+    {
+        "neighbor_address": "198.51.100.8",
+        "state": "UP",
+        "interface": "Ve60",
+        "holddown": 300000,
+        "interval": 100000,
+        "remote_rx": true,
+        "multihop": false
+    },
+    {
+        "neighbor_address": "198.51.100.10",
+        "state": "DOWN",
+        "interface": "Ve13",
+        "holddown": 300000,
+        "interval": 100000,
+        "remote_rx": false,
+        "multihop": false
+    }
+]

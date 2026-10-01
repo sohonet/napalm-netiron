@@ -1,0 +1,19 @@
+Interface Ve 4
+  type: vlan
+  vlan-id: 4
+  members: ethe 2/3 
+  active: ethe 2/3 
+  port enabled
+  port state: UP
+  ip address: 198.51.100.7/31 
+  Port belongs to VRF: default-vrf
+  encapsulation: ETHERNET, mtu: 1500
+  directed-broadcast-forwarding: disabled
+  ip icmp redirect: enabled
+  ip local proxy arp: disabled
+  ip ignore gratuitous arp: disabled
+  ip access-list extended STANDARD-IN-ACL in
+  No outbound ip access-list is set
+  No Helper Addresses are configured.
+  RPF mode: None  RPF Log: Disabled
+  0 unicast RPF drop    0 unicast RPF suppressed drop

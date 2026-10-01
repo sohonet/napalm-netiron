@@ -1,0 +1,35 @@
+[
+    {
+        "system_id": "0000.0000.0003",
+        "interface": "Ve13",
+        "snpa": "0900.2b00.0005",
+        "state": "UP",
+        "hold_time": 30,
+        "type": "PTPT",
+        "priority": 127,
+        "state_change_time": "11 :19:38:58",
+        "protocol": "ISIS"
+    },
+    {
+        "system_id": "0000.0000.0002",
+        "interface": "Ve60",
+        "snpa": "0900.2b00.0005",
+        "state": "UP",
+        "hold_time": 30,
+        "type": "PTPT",
+        "priority": 127,
+        "state_change_time": "21 :20:18:49",
+        "protocol": "ISIS"
+    },
+    {
+        "system_id": "0000.0000.0004",
+        "interface": "Ve4",
+        "snpa": "0900.2b00.0005",
+        "state": "INIT",
+        "hold_time": 30,
+        "type": "PTPT",
+        "priority": 127,
+        "state_change_time": "0 :0 :0 :12",
+        "protocol": "ISIS"
+    }
+]

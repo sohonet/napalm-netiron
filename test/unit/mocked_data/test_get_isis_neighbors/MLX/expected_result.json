@@ -1,0 +1,24 @@
+[
+    {
+        "system_id": "0000.0000.0001",
+        "interface": "10GigabitEthernet2/5",
+        "snpa": "0900.2b00.0005",
+        "state": "UP",
+        "hold_time": 30,
+        "type": "PTPT",
+        "priority": 127,
+        "state_change_time": "28 :0 :50:6",
+        "protocol": "ISIS"
+    },
+    {
+        "system_id": "0000.0000.0002",
+        "interface": "10GigabitEthernet2/8",
+        "snpa": "0900.2b00.0005",
+        "state": "UP",
+        "hold_time": 30,
+        "type": "PTPT",
+        "priority": 127,
+        "state_change_time": "246:15:22:58",
+        "protocol": "ISIS"
+    }
+]

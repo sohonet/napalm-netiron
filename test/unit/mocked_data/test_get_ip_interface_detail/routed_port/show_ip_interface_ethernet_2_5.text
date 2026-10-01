@@ -1,0 +1,19 @@
+Interface Ethernet 2/5 (52)
+  port enabled
+  port state: UP
+  ip address: 198.51.100.3/31 
+  Port belongs to VRF: default-vrf
+  encapsulation: ETHERNET, mtu: 9198
+  MAC Address 0000.5e00.5301
+  directed-broadcast-forwarding: disabled
+  ip icmp redirect: disabled
+  ip local proxy arp: disabled
+  ip ignore gratuitous arp: disabled
+  ip access-list extended STANDARD-IN-ACL in
+  No outbound ip access-list is set
+  No Helper Addresses are configured.
+  RPF mode: None  RPF Log: Disabled
+  0 unicast RPF drop    0 unicast RPF suppressed drop
+  ignore-options: Disabled
+  RxPkts:       642646966620            TxPkts:   345094730860
+  RxBytes:      730624506091195         TxBytes:  366595853613711

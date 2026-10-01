@@ -1,0 +1,4 @@
+Total Entries:2 R:RXRemote(Y:Yes/N:No)H:Hop(S:Single/M:Multi)
+NeighborAddress                        State  Interface       Holddown   Interval  R/H
+198.51.100.0                           UP     eth 2/8         300000     100000    Y/S
+198.51.100.2                           UP     eth 2/5         600000     100000    Y/S

@@ -1,0 +1,11 @@
+{
+    "name": "10GigabitEthernet2/3",
+    "link_status": "up",
+    "line_protocol_status": "up",
+    "description": "CO::FO-ROUTER-TST03::e2/1",
+    "untagged_vlan": null,
+    "trunk_ports": [],
+    "trunk_role": null,
+    "mtu": 9216,
+    "ip_mtu": null
+}

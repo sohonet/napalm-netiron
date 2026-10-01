@@ -1,0 +1,7 @@
+Ve13 is up, line protocol is up
+  Type is Vlan (Vlan Id: 13)
+  Hardware is Virtual Ethernet, address is 0000.5e00.5302 (bia 0000.5e00.5302)
+  Port name is TST02-ARISTA-TO-TST02-CER
+  Vlan id: 13
+  Internet address is 198.51.100.11/31, IP MTU 9194 bytes, encapsulation ethernet
+  Configured BW 0 kbps

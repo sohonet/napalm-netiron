@@ -1,0 +1,20 @@
+[
+    {
+        "neighbor_address": "198.51.100.0",
+        "state": "UP",
+        "interface": "10GigabitEthernet2/8",
+        "holddown": 300000,
+        "interval": 100000,
+        "remote_rx": true,
+        "multihop": false
+    },
+    {
+        "neighbor_address": "198.51.100.2",
+        "state": "UP",
+        "interface": "10GigabitEthernet2/5",
+        "holddown": 600000,
+        "interval": 100000,
+        "remote_rx": true,
+        "multihop": false
+    }
+]

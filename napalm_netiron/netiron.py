@@ -2131,6 +2131,245 @@ class NetIronDriver(NetworkDriver):
 
         return routes
 
+    # Routing protocol getters
+    #
+    # Interfaces are returned with standardize_interface_name(), e.g. "10GigabitEthernet2/5" or "Ve13", as for the
+    # other getters. The commands themselves use the short form, e.g. "show interface ethernet 2/5".
+
+    def get_isis_neighbors(self):
+        """Return the IS-IS neighbors from "show isis neighbor".
+
+        Example output:
+        [
+            {
+                "system_id": "0000.0000.0001",
+                "interface": "10GigabitEthernet2/5",
+                "snpa": "0900.2b00.0005",
+                "state": "UP",
+                "hold_time": 30,
+                "type": "PTPT",
+                "priority": 127,
+                "state_change_time": "28 :0 :50:6",
+                "protocol": "ISIS",
+            }
+        ]
+        """
+        output = self._send_show_command("show isis neighbor")
+        info = textfsm_extractor(self, "show_isis_neighbor", output)
+
+        return [
+            {
+                "system_id": neighbor["systemid"],
+                "interface": self.standardize_interface_name(neighbor["interface"]),
+                "snpa": neighbor["snpa"],
+                "state": neighbor["state"],
+                "hold_time": int(neighbor["holdtime"]),
+                "type": neighbor["type"],
+                "priority": int(neighbor["priority"]),
+                "state_change_time": neighbor["statechangetime"],
+                "protocol": neighbor["protocol"],
+            }
+            for neighbor in info
+        ]
+
+    def get_bfd_neighbors(self):
+        """Return the BFD neighbors from "show bfd neighbors".
+
+        Example output:
+        [
+            {
+                "neighbor_address": "192.0.2.1",
+                "state": "UP",
+                "interface": "10GigabitEthernet2/8",
+                "holddown": 300000,
+                "interval": 100000,
+                "remote_rx": True,
+                "multihop": False,
+            }
+        ]
+        """
+        output = self._send_show_command("show bfd neighbors")
+        info = textfsm_extractor(self, "show_bfd_neighbors", output)
+
+        return [
+            {
+                "neighbor_address": neighbor["neighboraddress"],
+                "state": neighbor["state"],
+                "interface": self.standardize_interface_name(neighbor["interface"]) if neighbor["interface"] else None,
+                "holddown": int(neighbor["holddown"]),
+                "interval": int(neighbor["interval"]),
+                "remote_rx": neighbor["remoterx"] == "Y",
+                "multihop": neighbor["hop"] == "M",
+            }
+            for neighbor in info
+        ]
+
+    def get_ldp_sessions(self):
+        """Return the MPLS LDP sessions from "show mpls ldp session detail".
+
+        Targeted sessions have no interfaces.
+
+        Example output:
+        [
+            {
+                "peer_ldp_id": "192.0.2.2",
+                "peer_label_space": 0,
+                "local_ldp_id": "192.0.2.1",
+                "state": "Operational",
+                "adjacency": "Link",
+                "role": "Active",
+                "up_time": "246 d 15 hr 48 min 46 sec",
+                "interfaces": ["10GigabitEthernet2/8"],
+            }
+        ]
+        """
+        output = self._send_show_command("show mpls ldp session detail")
+        info = textfsm_extractor(self, "show_mpls_ldp_session_detail", output)
+
+        return [
+            {
+                "peer_ldp_id": session["peerldpid"],
+                "peer_label_space": int(session["peerlabelspace"]),
+                "local_ldp_id": session["localldpid"],
+                "state": session["state"],
+                "adjacency": session["adjacency"],
+                "role": session["role"],
+                "up_time": session["uptime"],
+                "interfaces": [
+                    self.standardize_interface_name(re.sub(r"\(Trunk\d+\)$", "", interface))
+                    for interface in session["interfaces"].split()
+                    if interface != "(targeted)"
+                ],
+            }
+            for session in info
+        ]
+
+    def get_interface_detail(self, interface):
+        """Return the state of a single physical interface or ve from "show interface <interface>".
+
+        The interface can be given as returned by the other getters (e.g. "10GigabitEthernet2/5", "Ve13") or as
+        used in the commands (e.g. "ethernet 2/5", "ve 13").
+
+        mtu is the frame MTU of physical ports, ip_mtu the IP MTU of ves. trunk_ports lists the ports of the LAG
+        the port is a member of.
+
+        Example output:
+        {
+            "name": "10GigabitEthernet2/5",
+            "link_status": "up",
+            "line_protocol_status": "up",
+            "description": "TO::SOMEWHERE",
+            "untagged_vlan": 1,
+            "trunk_ports": ["10GigabitEthernet2/5", "10GigabitEthernet2/6", "10GigabitEthernet2/7"],
+            "trunk_role": "primary",
+            "mtu": 9216,
+            "ip_mtu": None,
+        }
+        """
+        interface = self._validate_interface_argument(interface)
+
+        output = self._send_show_command("show interface {}".format(interface))
+        info = textfsm_extractor(self, "show_interface_detail", output)
+        if not info:
+            raise ValueError('Unable to get the details of interface "{}"'.format(interface))
+        detail = info[0]
+
+        return {
+            "name": detail["name"],
+            "link_status": detail["linkstatus"],
+            "line_protocol_status": detail["lineprotocolstatus"],
+            "description": detail["description"],
+            "untagged_vlan": int(detail["untaggedvlan"]) if detail["untaggedvlan"] else None,
+            "trunk_ports": self._expand_trunk_ports(detail["trunkports"]) if detail["trunkports"] else [],
+            "trunk_role": detail["trunkrole"] or None,
+            "mtu": int(detail["mtu"]) if detail["mtu"] else None,
+            "ip_mtu": int(detail["ipmtu"]) if detail["ipmtu"] else None,
+        }
+
+    def get_ip_interface_detail(self, interface):
+        """Return the IP details of a single physical interface or ve from "show ip interface <interface>".
+
+        The interface can be given in either form, as for get_interface_detail(). members and active_members are
+        the ports of a ve.
+
+        Example output:
+        {
+            "port_state": "UP",
+            "ip_mtu": 9194,
+            "vlan_id": 13,
+            "members": ["10GigabitEthernet2/1"],
+            "active_members": ["10GigabitEthernet2/1"],
+        }
+        """
+        interface = self._validate_interface_argument(interface)
+
+        output = self._send_show_command("show ip interface {}".format(interface))
+        info = textfsm_extractor(self, "show_ip_interface_detail", output)
+        if not info or not info[0]["ipmtu"]:
+            raise ValueError('Unable to get the IP details of interface "{}"'.format(interface))
+        detail = info[0]
+
+        return {
+            "port_state": detail["portstate"],
+            "ip_mtu": int(detail["ipmtu"]),
+            "vlan_id": int(detail["vlanid"]) if detail["vlanid"] else None,
+            "members": self.interfaces_to_list(detail["members"]),
+            "active_members": self.interfaces_to_list(detail["activemembers"]),
+        }
+
+    def _send_show_command(self, command):
+        """Run a show command, raising an error rather than parsing the output of a failed command"""
+        output = self._send_command(command)
+        if "Invalid input" in output:
+            raise ValueError('Unable to execute command "{}": {}'.format(command, output))
+        return output
+
+    @staticmethod
+    def _validate_interface_argument(interface):
+        """Only allow physical interfaces and ves, as the value is sent to the device.
+
+        Accepts the form returned by the getters (e.g. "10GigabitEthernet2/5", "Ve13") or used in the commands
+        (e.g. "ethernet 2/5", "ve 13"), and returns the form used in the commands.
+        """
+        interface = str(interface).strip()
+
+        port = re.match(r"^(?:\d*GigabitEthernet|ethernet )(\d+/\d+)$", interface)
+        if port:
+            return "ethernet {}".format(port.group(1))
+
+        ve = re.match(r"^(?:Ve|ve )(\d+)$", interface)
+        if ve:
+            return "ve {}".format(ve.group(1))
+
+        raise ValueError(
+            'Interface "{}" must be in the form "10GigabitEthernet2/5", "ethernet 2/5", "Ve13" or "ve 13"'.format(
+                interface
+            )
+        )
+
+    def _expand_port_range(self, start, end):
+        """Expand a range of ports on the same slot, e.g. 2/5 to 2/7"""
+        start_slot, start_port = start.split("/")
+        end_slot, end_port = end.split("/")
+        if start_slot != end_slot:
+            raise ValueError(
+                "Unable to expand the port range {} to {}, the ports are on different slots".format(start, end)
+            )
+        return [
+            self.standardize_interface_name("{}/{}".format(start_slot, port))
+            for port in range(int(start_port), int(end_port) + 1)
+        ]
+
+    def _expand_trunk_ports(self, trunk_ports):
+        """Expand the trunk ports from "show interface", e.g. "2/5-2/7" or "2/8,2/13,2/21" """
+        ports = []
+        for item in trunk_ports.split(","):
+            if "-" in item:
+                ports.extend(self._expand_port_range(*item.split("-")))
+            else:
+                ports.append(self.standardize_interface_name(item))
+        return ports
+
     def get_config(self, retrieve="all", full=False, sanitized=False, format="text"):
         """Implementation of get_config for netiron.
 
@@ -2354,8 +2593,8 @@ class NetIronDriver(NetworkDriver):
         port = re.sub(r"^tn(\d+)$", "Tunnel\\1", port)
         # Conver gre-tnlX to TunnelX
         port = re.sub(r"^gre-tnl(\d+)$", "Tunnel\\1", port)
-        # Convert veX to VeX
-        port = re.sub(r"^ve(\d+)$", "Ve\\1", port)
+        # Convert veX or ve X to VeX
+        port = re.sub(r"^ve\s*(\d+)$", "Ve\\1", port)
         # Convert mgmt1 to Ethernetmgmt1
         if port in ["mgmt1", "management1"]:
             port = "Ethernetmgmt1"
