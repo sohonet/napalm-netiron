@@ -1,0 +1,32 @@
+[
+    {
+        "peer_ldp_id": "192.0.2.4",
+        "peer_label_space": 0,
+        "local_ldp_id": "192.0.2.5",
+        "state": "Operational",
+        "adjacency": "Link",
+        "role": "Active",
+        "up_time": "89 d 16 hr 42 min 1 sec",
+        "interfaces": ["Ve4"]
+    },
+    {
+        "peer_ldp_id": "192.0.2.2",
+        "peer_label_space": 0,
+        "local_ldp_id": "192.0.2.5",
+        "state": "Initialized",
+        "adjacency": "Link",
+        "role": "Active",
+        "up_time": "0 d 0 hr 0 min 12 sec",
+        "interfaces": ["Ve60"]
+    },
+    {
+        "peer_ldp_id": "192.0.2.1",
+        "peer_label_space": 0,
+        "local_ldp_id": "192.0.2.5",
+        "state": "Operational",
+        "adjacency": "Targeted",
+        "role": "Passive",
+        "up_time": "532 d 4 hr 40 min 39 sec",
+        "interfaces": []
+    }
+]

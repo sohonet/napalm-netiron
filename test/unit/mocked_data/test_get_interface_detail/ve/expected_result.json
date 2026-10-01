@@ -1,0 +1,11 @@
+{
+    "name": "Ve13",
+    "link_status": "up",
+    "line_protocol_status": "up",
+    "description": "TST02-ARISTA-TO-TST02-CER",
+    "untagged_vlan": null,
+    "trunk_ports": [],
+    "trunk_role": null,
+    "mtu": null,
+    "ip_mtu": 9194
+}

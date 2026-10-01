@@ -1,0 +1,7 @@
+{
+    "port_state": "UP",
+    "ip_mtu": 1500,
+    "vlan_id": 4,
+    "members": ["10GigabitEthernet2/3"],
+    "active_members": ["10GigabitEthernet2/3"]
+}

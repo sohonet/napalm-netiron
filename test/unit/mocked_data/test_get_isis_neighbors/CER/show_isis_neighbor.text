@@ -1,0 +1,5 @@
+Total number of IS-IS Neighbors: 3
+System Id      Interface    SNPA           State Holdtime Type Pri StateChgeTime Protocol
+0000.0000.0003 ve 13        0900.2b00.0005 UP    30       PTPT 127 11 :19:38:58  ISIS
+0000.0000.0002 ve 60        0900.2b00.0005 UP    30       PTPT 127 21 :20:18:49  ISIS
+0000.0000.0004 ve 4         0900.2b00.0005 INIT  30       PTPT 127 0 :0 :0 :12   ISIS

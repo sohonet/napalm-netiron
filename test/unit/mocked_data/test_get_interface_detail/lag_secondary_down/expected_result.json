@@ -1,0 +1,11 @@
+{
+    "name": "10GigabitEthernet2/6",
+    "link_status": "down(remote fault)",
+    "line_protocol_status": "down",
+    "description": "CO::AR-ROUTER-TST01::Eth27",
+    "untagged_vlan": 1,
+    "trunk_ports": ["10GigabitEthernet2/5", "10GigabitEthernet2/6", "10GigabitEthernet2/7"],
+    "trunk_role": "secondary",
+    "mtu": 9216,
+    "ip_mtu": null
+}

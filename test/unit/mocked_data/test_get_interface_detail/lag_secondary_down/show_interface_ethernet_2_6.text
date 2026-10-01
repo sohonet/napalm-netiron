@@ -1,0 +1,31 @@
+10GigabitEthernet2/6 is down(remote fault), line protocol is down
+  Port state change time: Sep  2 14:50:17  (28 days 00:47:59 ago)
+  Loopback: None
+  STP Root Guard is disabled, STP BPDU Guard is disabled
+  Hardware is 10GigabitEthernet, address is 0000.5e00.5301 (bia 0000.5e00.5301)
+  Configured speed 10Gbit, actual 10Gbit, configured duplex fdx, actual fdx
+  Member of Control VLAN 4095, VLAN 1 (untagged), port is in untagged mode, port state is Disabled
+  STP configured to ON, Priority is level0, flow control enabled
+  Priority force disabled, Drop precedence level 0, Drop precedence force disabled
+  dhcp-snooping-trust configured to OFF
+  mirror disabled, monitor disabled
+  LACP BPDU Forwarding:Disabled
+  LLDP BPDU Forwarding:Disabled
+  UDA Offsets :Disabled
+  Member of active trunk ports 2/5-2/7, secondary port, primary port is 2/5
+  Member of configured trunk ports 2/5-2/7, secondary port, primary port is 2/5
+  Port name is CO::AR-ROUTER-TST01::Eth27
+  Port is not enabled to receive all vlan packets for pbr
+  MTU 9216 bytes, encapsulation ethernet
+  Configured BW is 10000000 kbps
+  Openflow: Disabled, Openflow Index 53
+  Cluster L2 protocol forwarding enabled
+  30 second input rate: 16898 bits/sec, 11 packets/sec, 0.00% utilization
+  30 second output rate: 15987 bits/sec, 14 packets/sec, 0.00% utilization
+  642648671902 packets input, 717774443033788 bytes, 0 no buffer
+  Received 5889 broadcasts, 1347318 multicasts, 642647318695 unicasts
+  0 input errors, 0 CRC, 0 frame, 0 ignored
+  0 runts, 0 giants
+  360932497290 packets output, 359421117647631 bytes, 0 underruns
+  Transmitted 488520439 broadcasts, 5683999 multicasts, 360438292852 unicasts
+  0 output errors, 0 collisions

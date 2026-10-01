@@ -1,0 +1,11 @@
+Interface Ve 95
+  type: vlan
+  vlan-id: 95
+  members: ethe 1/8 to 1/9 ethe 1/11 
+  active: ethe 1/8 ethe 1/11 
+  port enabled
+  port state: UP
+  ip address: 198.51.100.13/31 
+  Port belongs to VRF: default-vrf
+  encapsulation: ETHERNET, mtu: 9192
+  directed-broadcast-forwarding: disabled
