@@ -1,0 +1,22 @@
+[
+    {
+        "peer_ldp_id": "192.0.2.7",
+        "peer_label_space": 0,
+        "local_ldp_id": "192.0.2.9",
+        "state": "Operational",
+        "adjacency": "Link",
+        "role": "Active",
+        "up_time": "247 d 22 hr 13 min 46 sec",
+        "interfaces": ["Ve7"]
+    },
+    {
+        "peer_ldp_id": "192.0.2.8",
+        "peer_label_space": 0,
+        "local_ldp_id": "192.0.2.9",
+        "state": "Operational",
+        "adjacency": "Link",
+        "role": "Active",
+        "up_time": "603 d 23 hr 30 min 37 sec",
+        "interfaces": ["Ve5"]
+    }
+]
